@@ -23,7 +23,6 @@
 		compositeColors,
 		contrastSpectrumPosition,
 		contrastSummary,
-		deltaOklab,
 		evaluateCriteria,
 		fatigueStatus,
 		findMinimumAlpha,
@@ -48,6 +47,15 @@
 		VisionConditionId
 	} from '$lib/color/types';
 
+	type WorkspaceTab = 'checker' | 'simulations' | 'palette';
+
+	const workspaceTabs: { id: WorkspaceTab; label: string; summary: string }[] = [
+		{ id: 'checker', label: 'Checker', summary: 'Composición, ratio y aprobación' },
+		{ id: 'simulations', label: 'Simulaciones', summary: 'Contexto real, visión y semántica' },
+		{ id: 'palette', label: 'Paleta', summary: 'Escala, tokens y exportación' }
+	];
+
+	let activeTab: WorkspaceTab = 'checker';
 	let foregroundInput = '#0f172a';
 	let backgroundInput = '#f8fafc';
 	let surfaceInput = '#ffffff';
@@ -104,6 +112,7 @@
 		setColorInput('foreground', preset.fg);
 		setColorInput('background', preset.bg);
 		setColorInput('surface', preset.surface);
+		activeTab = 'checker';
 	}
 
 	async function copyText(label: string, value: string) {
@@ -196,6 +205,7 @@
 	$: apca = pipeline ? apcaContrastValue(pipeline.foreground, pipeline.background) : 0;
 	$: criteria = pipeline ? evaluateCriteria(pipeline.foreground, pipeline.background) : [];
 	$: criteriaSummary = contrastSummary(criteria);
+	$: passedCount = criteria.filter((item) => item.passed).length;
 	$: fatigue = fatigueStatus(ratio);
 	$: fatiguePosition = contrastSpectrumPosition(ratio);
 	$: alphaSamples =
@@ -225,6 +235,10 @@
 		pipeline && pipeline.background
 			? rgbaToCss(compositeColors(withAlpha(pipeline.foreground, 0.08), withAlpha(pipeline.background, 1)))
 			: 'rgb(30 41 59)';
+
+	$: currentVision = VISION_CONDITIONS.find((item) => item.id === selectedVision) ?? VISION_CONDITIONS[0];
+	$: currentAmbient = AMBIENT_CONDITIONS.find((item) => item.id === selectedAmbient) ?? AMBIENT_CONDITIONS[0];
+	$: currentPrint = PRINT_MODES.find((item) => item.id === selectedPrint) ?? PRINT_MODES[0];
 
 	$: darkModePair =
 		pipeline && pipeline.baseForeground && pipeline.baseBackground
@@ -380,639 +394,907 @@
 </svelte:head>
 
 <div class="page">
-	<section class="hero">
-		<div class="hero-copy">
-			<p class="badge">ChromaCheck · SvelteKit 2 + Svelte 5</p>
-			<h1>Contraste, accesibilidad y generación de color con criterio real.</h1>
-			<p class="lede">
-				Analiza un par de colores con alpha real, WCAG 2.2, APCA, visión simulada, luz exterior,
-				impresión y paletas perceptuales listas para diseño systems.
-			</p>
-
-			<div class="hero-actions">
-				<a href="#checker">Abrir checker</a>
-				<a href="#palette">Ir a paletas</a>
-			</div>
+	<header class="masthead">
+		<div class="brandline">
+			<p class="badge">ChromaCheck</p>
+			<span>Contrast intelligence workspace</span>
 		</div>
 
-		<div class="hero-panel" style={`--fg:${previewForeground}; --bg:${previewBackground}; --bd:${previewBorder}; --soft:${previewSoft};`}>
-			<div class="hero-chip">
-				<span>Simulación activa</span>
-				<strong>
-					{VISION_CONDITIONS.find((item) => item.id === selectedVision)?.label},
-					{AMBIENT_CONDITIONS.find((item) => item.id === selectedAmbient)?.label}
-				</strong>
+		<div class="masthead-grid">
+			<div class="masthead-copy">
+				<p class="section-label">A timeless contrast system</p>
+				<h1>La forma más clara, sobria y precisa de evaluar color.</h1>
+				<p class="lede">
+					Un workspace profesional para accesibilidad visual, contraste real y sistemas de color. Todo lo
+					importante vive en un flujo simple: componer, validar, simular y exportar.
+				</p>
+
+				<div class="hero-points">
+					<span>WCAG 2.2 + APCA</span>
+					<span>Alpha compositing real</span>
+					<span>Visión, luz e impresión</span>
+				</div>
+
+				<div class="hero-actions">
+					<button type="button" class="primary" on:click={() => (activeTab = 'checker')}>Abrir checker</button>
+					<button type="button" class="secondary" on:click={() => (activeTab = 'palette')}>Abrir paleta</button>
+				</div>
 			</div>
 
-			<div class="hero-demo">
-				<div class="card headline">
-					<p>Typography</p>
-					<h2>Readable by default</h2>
-					<span>WCAG + APCA sobre color compuesto</span>
-				</div>
-				<div class="card stat">
-					<p>Ratio</p>
-					<strong>{ratio ? `${ratio.toFixed(2)}:1` : '—'}</strong>
-					<span>APCA {Math.abs(apca).toFixed(1)} Lc</span>
-				</div>
-			</div>
-		</div>
-	</section>
-
-	<section class="control-bar">
-		<label>
-			<span>Visión</span>
-			<select bind:value={selectedVision}>
-				{#each VISION_CONDITIONS as condition}
-					<option value={condition.id}>{condition.label}</option>
-				{/each}
-			</select>
-		</label>
-
-		<label>
-			<span>Luz ambiental</span>
-			<select bind:value={selectedAmbient}>
-				{#each AMBIENT_CONDITIONS as condition}
-					<option value={condition.id}>{condition.label}</option>
-				{/each}
-			</select>
-		</label>
-
-		<label>
-			<span>Salida</span>
-			<select bind:value={selectedPrint}>
-				{#each PRINT_MODES as mode}
-					<option value={mode.id}>{mode.label}</option>
-				{/each}
-			</select>
-		</label>
-
-		{#if copied}
-			<div class="copied">{copied}</div>
-		{/if}
-	</section>
-
-	<div class="main-grid" id="checker">
-		<div class="stack">
-			<SectionCard
-				eyebrow="Input"
-				title="Capas y alpha compositing"
-				description="Foreground y background aceptan transparencia. El surface define el lienzo final cuando el background también tiene alpha."
-			>
-				<div class="color-grid">
-					<ColorField
-						label="Foreground"
-						description="Texto o iconografía principal."
-						value={foregroundInput}
-						alpha={foregroundAlpha}
-						preview={foregroundColor ? rgbaToCss(foregroundColor) : 'rgb(15 23 42)'}
-						hexValue={foregroundColor ? rgbaToHex(foregroundColor) : '—'}
-						oklchValue={foregroundColor ? rgbaToOklchString(foregroundColor) : '—'}
-						luminance={foregroundColor ? luminanceY(foregroundColor).toFixed(4) : '—'}
-						error={foregroundParsed.ok ? '' : foregroundParsed.error}
-						on:change={(event) => setColorInput('foreground', event.detail)}
-						on:alpha={(event) => (foregroundAlpha = event.detail)}
-					/>
-
-					<ColorField
-						label="Background"
-						description="Panel o superficie inmediata."
-						value={backgroundInput}
-						alpha={backgroundAlpha}
-						preview={backgroundColor ? rgbaToCss(backgroundColor) : 'rgb(248 250 252)'}
-						hexValue={backgroundColor ? rgbaToHex(backgroundColor) : '—'}
-						oklchValue={backgroundColor ? rgbaToOklchString(backgroundColor) : '—'}
-						luminance={backgroundColor ? luminanceY(backgroundColor).toFixed(4) : '—'}
-						error={backgroundParsed.ok ? '' : backgroundParsed.error}
-						on:change={(event) => setColorInput('background', event.detail)}
-						on:alpha={(event) => (backgroundAlpha = event.detail)}
-					/>
-
-					<ColorField
-						label="Surface"
-						description="Canvas base para resolver transparencias."
-						value={surfaceInput}
-						alpha={surfaceAlpha}
-						preview={surfaceColor ? rgbaToCss(surfaceColor) : 'rgb(255 255 255)'}
-						hexValue={surfaceColor ? rgbaToHex(surfaceColor) : '—'}
-						oklchValue={surfaceColor ? rgbaToOklchString(surfaceColor) : '—'}
-						luminance={surfaceColor ? luminanceY(surfaceColor).toFixed(4) : '—'}
-						error={surfaceParsed.ok ? '' : surfaceParsed.error}
-						on:change={(event) => setColorInput('surface', event.detail)}
-						on:alpha={(event) => (surfaceAlpha = event.detail)}
-					/>
+			<aside class="masthead-monitor">
+				<div class="monitor-meta">
+					<div>
+						<span class="subtle-label">Sesión activa</span>
+						<strong>{currentVision.label} · {currentAmbient.label} · {currentPrint.label}</strong>
+					</div>
+					<div class="monitor-pills">
+						<span>{passedCount}/11 aprobados</span>
+						<span>{Math.abs(apca).toFixed(1)} Lc</span>
+					</div>
 				</div>
 
-				<div class="preset-row">
-					<div class="preset-block">
-						<span class="micro-label">Presets</span>
-						<div class="chips">
-							{#each PRESET_PAIRS as preset}
-								<button type="button" class="chip" on:click={() => applyPreset(preset)}>{preset.name}</button>
-							{/each}
-						</div>
+				<div class="monitor-stage" style={`--monitor-fg:${previewForeground}; --monitor-bg:${previewBackground}; --monitor-border:${previewBorder}; --monitor-soft:${previewSoft};`}>
+					<div class="monitor-editor">
+						<p>Live preview</p>
+						<h2>Readable by design</h2>
+						<span>El color visible ya incorpora alpha y simulación</span>
 					</div>
 
-					<div class="preset-block">
-						<span class="micro-label">Historial</span>
-						<div class="chips">
-							{#if history.length}
-								{#each history as entry}
-									<button type="button" class="chip ghost" on:click={() => loadFromHistory(entry)}>
-										{entry.fg} / {entry.bg}
-									</button>
+					<div class="monitor-figures">
+						<article>
+							<span>WCAG</span>
+							<strong>{ratio.toFixed(2)}:1</strong>
+						</article>
+						<article>
+							<span>APCA</span>
+							<strong>{Math.abs(apca).toFixed(1)} Lc</strong>
+						</article>
+						<article>
+							<span>Estado</span>
+							<strong>{fatigue.label}</strong>
+						</article>
+					</div>
+				</div>
+			</aside>
+		</div>
+	</header>
+
+	<section class="workspace-shell">
+		<div class="workspace-top">
+			<div class="tablist" role="tablist" aria-label="Secciones principales">
+				{#each workspaceTabs as tab}
+					<button
+						type="button"
+						role="tab"
+						class:active={activeTab === tab.id}
+						aria-selected={activeTab === tab.id}
+						on:click={() => (activeTab = tab.id)}
+					>
+						<strong>{tab.label}</strong>
+						<span>{tab.summary}</span>
+					</button>
+				{/each}
+			</div>
+
+			<div class="workspace-status">
+				<div>
+					<span class="subtle-label">Foreground</span>
+					<strong>{foregroundColor ? rgbaToHex(foregroundColor) : '—'}</strong>
+				</div>
+				<div>
+					<span class="subtle-label">Background</span>
+					<strong>{backgroundColor ? rgbaToHex(backgroundColor) : '—'}</strong>
+				</div>
+				<div>
+					<span class="subtle-label">Resumen</span>
+					<strong>{criteriaSummary}</strong>
+				</div>
+			</div>
+		</div>
+
+		<div class="workspace-controls">
+			<label>
+				<span>Visión</span>
+				<select bind:value={selectedVision}>
+					{#each VISION_CONDITIONS as condition}
+						<option value={condition.id}>{condition.label}</option>
+					{/each}
+				</select>
+			</label>
+
+			<label>
+				<span>Luz ambiental</span>
+				<select bind:value={selectedAmbient}>
+					{#each AMBIENT_CONDITIONS as condition}
+						<option value={condition.id}>{condition.label}</option>
+					{/each}
+				</select>
+			</label>
+
+			<label>
+				<span>Salida</span>
+				<select bind:value={selectedPrint}>
+					{#each PRINT_MODES as mode}
+						<option value={mode.id}>{mode.label}</option>
+					{/each}
+				</select>
+			</label>
+
+			<div class="pair-card">
+				<div class="pair-swatches">
+					<span style={`background:${foregroundColor ? rgbaToCss(foregroundColor) : '#0f172a'}`}></span>
+					<span style={`background:${backgroundColor ? rgbaToCss(backgroundColor) : '#f8fafc'}`}></span>
+					<span style={`background:${surfaceColor ? rgbaToCss(surfaceColor) : '#ffffff'}`}></span>
+				</div>
+				<div>
+					<span>Par activo</span>
+					<strong>{foregroundInput} / {backgroundInput}</strong>
+					<p>Surface {surfaceInput}</p>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	{#if copied}
+		<div class="copied">{copied}</div>
+	{/if}
+
+	{#if activeTab === 'checker'}
+		<section class="tab-panel" role="tabpanel" id="checker">
+			<div class="checker-grid">
+				<SectionCard
+					eyebrow="Composer"
+					title="Capas y composición real"
+					description="Todo empieza con tres capas claras. Define foreground, background y surface, y deja que ChromaCheck resuelva la visibilidad efectiva."
+				>
+					<div class="composer-grid">
+						<ColorField
+							label="Foreground"
+							description="Texto o iconografía principal."
+							value={foregroundInput}
+							alpha={foregroundAlpha}
+							preview={foregroundColor ? rgbaToCss(foregroundColor) : 'rgb(15 23 42)'}
+							hexValue={foregroundColor ? rgbaToHex(foregroundColor) : '—'}
+							oklchValue={foregroundColor ? rgbaToOklchString(foregroundColor) : '—'}
+							luminance={foregroundColor ? luminanceY(foregroundColor).toFixed(4) : '—'}
+							error={foregroundParsed.ok ? '' : foregroundParsed.error}
+							on:change={(event) => setColorInput('foreground', event.detail)}
+							on:alpha={(event) => (foregroundAlpha = event.detail)}
+						/>
+
+						<ColorField
+							label="Background"
+							description="Panel o superficie inmediata."
+							value={backgroundInput}
+							alpha={backgroundAlpha}
+							preview={backgroundColor ? rgbaToCss(backgroundColor) : 'rgb(248 250 252)'}
+							hexValue={backgroundColor ? rgbaToHex(backgroundColor) : '—'}
+							oklchValue={backgroundColor ? rgbaToOklchString(backgroundColor) : '—'}
+							luminance={backgroundColor ? luminanceY(backgroundColor).toFixed(4) : '—'}
+							error={backgroundParsed.ok ? '' : backgroundParsed.error}
+							on:change={(event) => setColorInput('background', event.detail)}
+							on:alpha={(event) => (backgroundAlpha = event.detail)}
+						/>
+
+						<ColorField
+							label="Surface"
+							description="Canvas base para resolver transparencias."
+							value={surfaceInput}
+							alpha={surfaceAlpha}
+							preview={surfaceColor ? rgbaToCss(surfaceColor) : 'rgb(255 255 255)'}
+							hexValue={surfaceColor ? rgbaToHex(surfaceColor) : '—'}
+							oklchValue={surfaceColor ? rgbaToOklchString(surfaceColor) : '—'}
+							luminance={surfaceColor ? luminanceY(surfaceColor).toFixed(4) : '—'}
+							error={surfaceParsed.ok ? '' : surfaceParsed.error}
+							on:change={(event) => setColorInput('surface', event.detail)}
+							on:alpha={(event) => (surfaceAlpha = event.detail)}
+						/>
+					</div>
+
+					<div class="toolbar-row">
+						<div class="toolbar-block">
+							<span class="subtle-label">Presets</span>
+							<div class="chips">
+								{#each PRESET_PAIRS as preset}
+									<button type="button" class="chip" on:click={() => applyPreset(preset)}>{preset.name}</button>
 								{/each}
-							{:else}
-								<span class="empty">Se irán guardando los últimos 8 pares válidos.</span>
-							{/if}
+							</div>
+						</div>
+
+						<div class="toolbar-block">
+							<span class="subtle-label">Historial</span>
+							<div class="chips">
+								{#if history.length}
+									{#each history as entry}
+										<button type="button" class="chip ghost" on:click={() => loadFromHistory(entry)}>
+											{entry.fg} / {entry.bg}
+										</button>
+									{/each}
+								{:else}
+									<span class="empty">Tus últimos 8 pares válidos aparecerán aquí.</span>
+								{/if}
+							</div>
 						</div>
 					</div>
-				</div>
-			</SectionCard>
+				</SectionCard>
 
-			<SectionCard
-				eyebrow="Preview"
-				title="Visualizador contextual"
-				description="La simulación seleccionada afecta tanto la vista como los cálculos del contraste efectivo."
-			>
-				<div class="preview-grid" style={`--preview-fg:${previewForeground}; --preview-bg:${previewBackground}; --preview-border:${previewBorder}; --preview-soft:${previewSoft};`}>
-					<article class="preview-card typography">
-						<span class="preview-kicker">Tipografía</span>
-						<h3>Readability under pressure</h3>
-						<p>
-							Cuerpo de texto, subtítulos y llamadas de atención sobre el color resultante después de composición,
-							simulación visual y soporte de impresión.
-						</p>
-					</article>
-
-					<article class="preview-card buttons">
-						<span class="preview-kicker">Botones</span>
-						<div class="button-row">
-							<button type="button" class="preview-button filled">Primary</button>
-							<button type="button" class="preview-button outline">Secondary</button>
-						</div>
-					</article>
-
-					<article class="preview-card forms">
-						<span class="preview-kicker">Formularios</span>
-						<label>
-							<span>Email</span>
-							<input type="text" value="hello@chromacheck.dev" readonly />
-						</label>
-					</article>
-
-					<article class="preview-card nav">
-						<span class="preview-kicker">Navegación</span>
-						<nav>
-							<a class="active" href="#checker">Overview</a>
-							<a href="#checker">Audit</a>
-							<a href="#palette">Palette</a>
-						</nav>
-					</article>
-
-					<article class="preview-card table">
-						<span class="preview-kicker">Tablas</span>
-						<table>
-							<tbody>
-								<tr><th>Token</th><th>Ratio</th></tr>
-								<tr><td>solid / text</td><td>{ratio.toFixed(2)}:1</td></tr>
-								<tr><td>APCA</td><td>{Math.abs(apca).toFixed(1)} Lc</td></tr>
-							</tbody>
-						</table>
-					</article>
-
-					<article class="preview-card alert">
-						<span class="preview-kicker">Alertas</span>
-						<div class="alert-box">
-							<strong>Status warning</strong>
-							<p>Revisa semántica, distinguishability y contraste de UI.</p>
-						</div>
-					</article>
-				</div>
-			</SectionCard>
-		</div>
-
-		<div class="stack">
-			<SectionCard
-				eyebrow="Audit"
-				title="Contraste calculado"
-				description="WCAG 2.2 y APCA sobre el par compuesto final, respetando la condición visual activa."
-			>
-				<div class="metric-grid">
-					<MetricCard
-						label="WCAG ratio"
-						value={ratio ? `${ratio.toFixed(2)}:1` : '—'}
-						detail="Relación final de luminancia"
-						tone={ratio >= 7 ? 'success' : ratio >= 4.5 ? 'warning' : 'danger'}
-					/>
-					<MetricCard
-						label="APCA"
-						value={analysisReady ? `${Math.abs(apca).toFixed(1)} Lc` : '—'}
-						detail={analysisReady ? polarityLabel(apca) : '—'}
-						tone={Math.abs(apca) >= 75 ? 'success' : Math.abs(apca) >= 60 ? 'warning' : 'danger'}
-					/>
-					<MetricCard
-						label="Criterios"
-						value={criteriaSummary}
-						detail="Aprobados sobre 11 checks"
-						tone={metricTone(criteria)}
-					/>
-					<MetricCard
-						label="Fatiga"
-						value={fatigue.label}
-						detail={fatigue.description}
-						tone={fatigue.tone === 'optimal' ? 'success' : fatigue.tone === 'moderate' ? 'warning' : 'danger'}
-					/>
-				</div>
-
-				<div class="criterion-list">
-					{#each criteria as item}
-						<article class:itemPass={item.passed} class="criterion">
-							<div>
-								<strong>{item.criterion.shortLabel}</strong>
-								<p>{item.criterion.note}</p>
+				<SectionCard
+					eyebrow="Audit"
+					title="Lectura inmediata del contraste"
+					description="La auditoría principal concentra el resultado visible, la aprobación por criterio y una muestra viva del par final."
+				>
+					<div class="audit-overview">
+						<div class="audit-hero">
+							<div class="audit-ratio">
+								<span class="subtle-label">Ratio visible</span>
+								<strong>{ratio.toFixed(2)}:1</strong>
+								<p>{Math.abs(apca).toFixed(1)} Lc · {polarityLabel(apca)}</p>
 							</div>
-							<div class="criterion-metrics">
-								<span>{item.criterion.unit === 'ratio' ? `${item.value.toFixed(2)}:1` : `${item.value.toFixed(1)} Lc`}</span>
-								<em>{ratioMarginLabel(item.value, item.criterion.threshold, item.criterion.unit)}</em>
+
+							<div class="audit-preview" style={`--preview-fg:${previewForeground}; --preview-bg:${previewBackground}; --preview-border:${previewBorder}; --preview-soft:${previewSoft};`}>
+								<div class="preview-heading">
+									<span>Context sample</span>
+									<strong>{currentVision.label}</strong>
+								</div>
+								<div class="preview-surface">
+									<p>Body copy</p>
+									<h3>Readable by default</h3>
+									<span>Preview sobre color visible compuesto</span>
+								</div>
+							</div>
+						</div>
+
+						<div class="metric-grid">
+							<MetricCard
+								label="WCAG ratio"
+								value={ratio ? `${ratio.toFixed(2)}:1` : '—'}
+								detail="Relación final de luminancia"
+								tone={ratio >= 7 ? 'success' : ratio >= 4.5 ? 'warning' : 'danger'}
+							/>
+							<MetricCard
+								label="APCA"
+								value={analysisReady ? `${Math.abs(apca).toFixed(1)} Lc` : '—'}
+								detail={analysisReady ? polarityLabel(apca) : '—'}
+								tone={Math.abs(apca) >= 75 ? 'success' : Math.abs(apca) >= 60 ? 'warning' : 'danger'}
+							/>
+							<MetricCard
+								label="Criterios"
+								value={criteriaSummary}
+								detail="Aprobados sobre 11 checks"
+								tone={metricTone(criteria)}
+							/>
+							<MetricCard
+								label="Fatiga"
+								value={fatigue.label}
+								detail={fatigue.description}
+								tone={fatigue.tone === 'optimal' ? 'success' : fatigue.tone === 'moderate' ? 'warning' : 'danger'}
+							/>
+						</div>
+					</div>
+
+					<div class="criterion-list compact">
+						{#each criteria as item}
+							<article class:itemPass={item.passed} class="criterion">
+								<div>
+									<strong>{item.criterion.shortLabel}</strong>
+									<p>{item.criterion.note}</p>
+								</div>
+								<div class="criterion-metrics">
+									<span>{item.criterion.unit === 'ratio' ? `${item.value.toFixed(2)}:1` : `${item.value.toFixed(1)} Lc`}</span>
+									<em>{ratioMarginLabel(item.value, item.criterion.threshold, item.criterion.unit)}</em>
+								</div>
+							</article>
+						{/each}
+					</div>
+				</SectionCard>
+			</div>
+
+			<div class="checker-secondary">
+				<SectionCard
+					eyebrow="Preview"
+					title="Visualizador contextual"
+					description="Los colores activos se aplican a componentes UI reales para que el usuario lea el contraste en contexto, no sólo como un número."
+				>
+					<div class="preview-grid" style={`--preview-fg:${previewForeground}; --preview-bg:${previewBackground}; --preview-border:${previewBorder}; --preview-soft:${previewSoft};`}>
+						<article class="preview-card typography">
+							<span class="preview-kicker">Tipografía</span>
+							<h3>Readable by design</h3>
+							<p>
+								El preview usa el par compuesto final y permite detectar si la lectura se mantiene elegante,
+								nítida y descansada.
+							</p>
+						</article>
+
+						<article class="preview-card buttons">
+							<span class="preview-kicker">Botones</span>
+							<div class="button-row">
+								<button type="button" class="preview-button filled">Primary action</button>
+								<button type="button" class="preview-button outline">Secondary</button>
 							</div>
 						</article>
-					{/each}
-				</div>
-			</SectionCard>
 
-			<SectionCard
-				eyebrow="Signals"
-				title="Capas efectivas"
-				description="Estos son los colores visibles resultantes después de resolver alpha y aplicar las simulaciones seleccionadas."
-			>
-				<div class="effective-pair">
-					<div class="effective-swatch">
-						<div class="bg" style={`background:${previewBackground}`}></div>
-						<div class="fg" style={`background:${previewForeground}`}></div>
-					</div>
-					<div class="effective-meta">
-						<div>
-							<span class="micro-label">Foreground visible</span>
-							<strong>{pipeline ? rgbaToHex(pipeline.foreground) : '—'}</strong>
-							<p>{pipeline ? rgbaToOklchString(pipeline.foreground) : '—'}</p>
-						</div>
-						<div>
-							<span class="micro-label">Background visible</span>
-							<strong>{pipeline ? rgbaToHex(pipeline.background) : '—'}</strong>
-							<p>{pipeline ? rgbaToOklchString(pipeline.background) : '—'}</p>
-						</div>
-						<div>
-							<span class="micro-label">Condición</span>
-							<strong>{VISION_CONDITIONS.find((item) => item.id === selectedVision)?.label}</strong>
-							<p>{PRINT_MODES.find((item) => item.id === selectedPrint)?.label} · {AMBIENT_CONDITIONS.find((item) => item.id === selectedAmbient)?.label}</p>
-						</div>
-					</div>
-				</div>
-			</SectionCard>
-		</div>
-	</div>
+						<article class="preview-card forms">
+							<span class="preview-kicker">Formularios</span>
+							<label>
+								<span>Email</span>
+								<input type="text" value="hello@chromacheck.dev" readonly />
+							</label>
+						</article>
 
-	<div class="module-grid">
-		<SectionCard
-			eyebrow="Module"
-			title="Alpha compositing"
-			description="Curva de contraste a través de todos los niveles de opacidad y el alpha mínimo para pasar AA en la condición actual."
-		>
-			<div class="module-copy">
-				<div>
-					<span class="micro-label">Alpha mínimo AA</span>
-					<strong>{minimumAlpha !== null ? `${Math.round(minimumAlpha * 100)}%` : 'No alcanza AA'}</strong>
-				</div>
-				<div>
-					<span class="micro-label">Foreground actual</span>
-					<strong>{Math.round(foregroundAlpha * 100)}%</strong>
-				</div>
-			</div>
-			<ContrastGraph points={alphaSamples} threshold={4.5} minAlpha={minimumAlpha} />
-		</SectionCard>
+						<article class="preview-card nav">
+							<span class="preview-kicker">Navegación</span>
+							<nav>
+								<a class="active" href="#checker">Overview</a>
+								<a href="#checker">Audit</a>
+								<a href="#palette">Palette</a>
+							</nav>
+						</article>
 
-		<SectionCard
-			eyebrow="Module"
-			title="Generador de modo oscuro"
-			description="Convierte el par visible actual a una versión oscura equivalente usando OKLCH y búsqueda del ratio objetivo."
-		>
-			{#if darkModePair}
-				<div class="darkmode-card">
-					<div class="darkmode-preview">
-						<div class="darkmode-bg" style={`background:${rgbaToCss(darkModePair.background)}`}></div>
-						<div class="darkmode-fg" style={`background:${rgbaToCss(darkModePair.foreground)}`}></div>
+						<article class="preview-card table">
+							<span class="preview-kicker">Tablas</span>
+							<table>
+								<tbody>
+									<tr><th>Token</th><th>Ratio</th></tr>
+									<tr><td>solid / text</td><td>{ratio.toFixed(2)}:1</td></tr>
+									<tr><td>APCA</td><td>{Math.abs(apca).toFixed(1)} Lc</td></tr>
+								</tbody>
+							</table>
+						</article>
+
+						<article class="preview-card alert">
+							<span class="preview-kicker">Alertas</span>
+							<div class="alert-box">
+								<strong>Status warning</strong>
+								<p>Revisa semántica, distinguishability y contraste de UI.</p>
+							</div>
+						</article>
 					</div>
-					<div class="darkmode-meta">
-						<div>
-							<span class="micro-label">Background dark</span>
-							<strong>{rgbaToHex(darkModePair.background)}</strong>
-							<p>{rgbaToOklchString(darkModePair.background)}</p>
+				</SectionCard>
+
+				<div class="stack">
+					<SectionCard
+						eyebrow="Module"
+						title="Alpha compositing"
+						description="Una curva sobria y legible para entender cuánto contraste gana o pierde el foreground al variar la opacidad."
+					>
+						<div class="module-copy">
+							<div>
+								<span class="subtle-label">Alpha mínimo AA</span>
+								<strong>{minimumAlpha !== null ? `${Math.round(minimumAlpha * 100)}%` : 'No alcanza AA'}</strong>
+							</div>
+							<div>
+								<span class="subtle-label">Foreground actual</span>
+								<strong>{Math.round(foregroundAlpha * 100)}%</strong>
+							</div>
 						</div>
-						<div>
-							<span class="micro-label">Foreground dark</span>
-							<strong>{rgbaToHex(darkModePair.foreground)}</strong>
-							<p>{rgbaToOklchString(darkModePair.foreground)}</p>
+						<ContrastGraph points={alphaSamples} threshold={4.5} minAlpha={minimumAlpha} />
+					</SectionCard>
+
+					<SectionCard
+						eyebrow="Signals"
+						title="Capas efectivas"
+						description="Éste es el par realmente visible después de resolver composición, visión simulada, luz y salida."
+					>
+						<div class="effective-pair">
+							<div class="effective-swatch">
+								<div class="bg" style={`background:${previewBackground}`}></div>
+								<div class="fg" style={`background:${previewForeground}`}></div>
+							</div>
+							<div class="effective-meta">
+								<div>
+									<span class="subtle-label">Foreground visible</span>
+									<strong>{pipeline ? rgbaToHex(pipeline.foreground) : '—'}</strong>
+									<p>{pipeline ? rgbaToOklchString(pipeline.foreground) : '—'}</p>
+								</div>
+								<div>
+									<span class="subtle-label">Background visible</span>
+									<strong>{pipeline ? rgbaToHex(pipeline.background) : '—'}</strong>
+									<p>{pipeline ? rgbaToOklchString(pipeline.background) : '—'}</p>
+								</div>
+							</div>
 						</div>
 						<div class="chips">
-							<button type="button" class="chip" on:click={() => copyText('Foreground dark', rgbaToHex(darkModePair.foreground))}>Copiar FG</button>
-							<button type="button" class="chip" on:click={() => copyText('Background dark', rgbaToHex(darkModePair.background))}>Copiar BG</button>
+							<button
+								type="button"
+								class="chip"
+								on:click={() =>
+									copyText(
+										'Foreground visible',
+										pipeline ? rgbaToHex(pipeline.foreground) : ''
+									)}
+							>
+								Copiar FG visible
+							</button>
+							<button
+								type="button"
+								class="chip"
+								on:click={() =>
+									copyText(
+										'Background visible',
+										pipeline ? rgbaToHex(pipeline.background) : ''
+									)}
+							>
+								Copiar BG visible
+							</button>
 						</div>
+					</SectionCard>
+				</div>
+			</div>
+		</section>
+	{:else if activeTab === 'simulations'}
+		<section class="tab-panel" role="tabpanel">
+			<div class="simulation-top">
+				<SectionCard
+					eyebrow="Context"
+					title="Simulación visual en componentes reales"
+					description="Un tablero más visual para leer cómo se comporta el color en tipografía, botones, formularios, navegación, tablas y alertas."
+				>
+					<div class="preview-grid" style={`--preview-fg:${previewForeground}; --preview-bg:${previewBackground}; --preview-border:${previewBorder}; --preview-soft:${previewSoft};`}>
+						<article class="preview-card typography">
+							<span class="preview-kicker">Tipografía</span>
+							<h3>Context is the real test</h3>
+							<p>Las simulaciones aquí deben sentirse útiles y quietas, no ruidosas.</p>
+						</article>
+
+						<article class="preview-card buttons">
+							<span class="preview-kicker">Botones</span>
+							<div class="button-row">
+								<button type="button" class="preview-button filled">Proceed</button>
+								<button type="button" class="preview-button outline">Dismiss</button>
+							</div>
+						</article>
+
+						<article class="preview-card forms">
+							<span class="preview-kicker">Formularios</span>
+							<label>
+								<span>Project name</span>
+								<input type="text" value="ChromaCheck" readonly />
+							</label>
+						</article>
+
+						<article class="preview-card nav">
+							<span class="preview-kicker">Navegación</span>
+							<nav>
+								<a class="active" href="#checker">Checker</a>
+								<a href="#checker">Vision</a>
+								<a href="#palette">Palette</a>
+							</nav>
+						</article>
+
+						<article class="preview-card table">
+							<span class="preview-kicker">Tablas</span>
+							<table>
+								<tbody>
+									<tr><th>Mode</th><th>Status</th></tr>
+									<tr><td>{currentPrint.label}</td><td>{criteriaSummary}</td></tr>
+									<tr><td>{currentAmbient.label}</td><td>{fatigue.label}</td></tr>
+								</tbody>
+							</table>
+						</article>
+
+						<article class="preview-card alert">
+							<span class="preview-kicker">Alertas</span>
+							<div class="alert-box">
+								<strong>Under visual simulation</strong>
+								<p>Este preview refleja la condición activa en tiempo real.</p>
+							</div>
+						</article>
 					</div>
-				</div>
+				</SectionCard>
 
-				<div class="metric-grid compact">
-					<MetricCard label="Objetivo" value={`${ratio.toFixed(2)}:1`} detail="Ratio visible actual" tone="default" />
-					<MetricCard label="Dark ratio" value={`${darkModePair.ratio.toFixed(2)}:1`} detail="Resultado ajustado" tone={darkModePair.ratio >= ratio ? 'success' : 'warning'} />
-					<MetricCard label="Dark APCA" value={`${Math.abs(darkModePair.apca).toFixed(1)} Lc`} detail="Percepción del par oscuro" tone={Math.abs(darkModePair.apca) >= 60 ? 'success' : 'warning'} />
-				</div>
-			{/if}
-		</SectionCard>
-
-		<SectionCard
-			eyebrow="Module"
-			title="Simulador de luz exterior"
-			description="Estimación del contraste real bajo cinco escenarios de ambiente sobre una pantalla autoiluminada."
-		>
-			<div class="scenario-grid">
-				{#each outdoorScenarios as scenario}
-					<article class="scenario">
-						<div class="scenario-swatch">
-							<div style={`background:${scenario.background}`}></div>
-							<div style={`background:${scenario.foreground}`}></div>
+				<SectionCard
+					eyebrow="Module"
+					title="Generador de modo oscuro"
+					description="Propone un equivalente oscuro conservando intención cromática y acercándose al ratio objetivo del par visible."
+				>
+					{#if darkModePair}
+						<div class="darkmode-card">
+							<div class="darkmode-preview">
+								<div class="darkmode-bg" style={`background:${rgbaToCss(darkModePair.background)}`}></div>
+								<div class="darkmode-fg" style={`background:${rgbaToCss(darkModePair.foreground)}`}></div>
+							</div>
+							<div class="darkmode-meta">
+								<div>
+									<span class="subtle-label">Background dark</span>
+									<strong>{rgbaToHex(darkModePair.background)}</strong>
+									<p>{rgbaToOklchString(darkModePair.background)}</p>
+								</div>
+								<div>
+									<span class="subtle-label">Foreground dark</span>
+									<strong>{rgbaToHex(darkModePair.foreground)}</strong>
+									<p>{rgbaToOklchString(darkModePair.foreground)}</p>
+								</div>
+								<div class="chips">
+									<button type="button" class="chip" on:click={() => copyText('Foreground dark', rgbaToHex(darkModePair.foreground))}>Copiar FG</button>
+									<button type="button" class="chip" on:click={() => copyText('Background dark', rgbaToHex(darkModePair.background))}>Copiar BG</button>
+								</div>
+							</div>
 						</div>
-						<strong>{scenario.condition.label}</strong>
-						<p>{scenario.condition.description}</p>
-						<span>{scenario.ratio.toFixed(2)}:1 · {Math.abs(scenario.apca).toFixed(1)} Lc</span>
-					</article>
-				{/each}
-			</div>
-		</SectionCard>
 
-		<SectionCard
-			eyebrow="Module"
-			title="Fatiga visual"
-			description="Detecta contraste insuficiente o excesivo y ubica el par dentro de la zona recomendada de 7:1 a 13:1."
-		>
-			<div class="fatigue-card">
-				<div class="spectrum">
-					<div class="band low"></div>
-					<div class="band mid"></div>
-					<div class="band opt"></div>
-					<div class="band high"></div>
-					<div class="needle" style={`left:${fatiguePosition}%`}></div>
-				</div>
-				<div class="module-copy">
-					<div>
-						<span class="micro-label">Estado</span>
-						<strong>{fatigue.label}</strong>
+						<div class="metric-grid compact">
+							<MetricCard label="Objetivo" value={`${ratio.toFixed(2)}:1`} detail="Ratio visible actual" tone="default" />
+							<MetricCard label="Dark ratio" value={`${darkModePair.ratio.toFixed(2)}:1`} detail="Resultado ajustado" tone={darkModePair.ratio >= ratio ? 'success' : 'warning'} />
+							<MetricCard label="Dark APCA" value={`${Math.abs(darkModePair.apca).toFixed(1)} Lc`} detail="Percepción del par oscuro" tone={Math.abs(darkModePair.apca) >= 60 ? 'success' : 'warning'} />
+						</div>
+					{/if}
+				</SectionCard>
+			</div>
+
+			<div class="simulation-grid">
+				<SectionCard
+					eyebrow="Module"
+					title="Luz exterior"
+					description="Compara el contraste bajo cinco condiciones ambientales, desde estudio controlado hasta celular al sol."
+				>
+					<div class="scenario-grid">
+						{#each outdoorScenarios as scenario}
+							<article class="scenario">
+								<div class="scenario-swatch">
+									<div style={`background:${scenario.background}`}></div>
+									<div style={`background:${scenario.foreground}`}></div>
+								</div>
+								<strong>{scenario.condition.label}</strong>
+								<p>{scenario.condition.description}</p>
+								<span>{scenario.ratio.toFixed(2)}:1 · {Math.abs(scenario.apca).toFixed(1)} Lc</span>
+							</article>
+						{/each}
 					</div>
-					<div>
-						<span class="micro-label">Rango óptimo</span>
-						<strong>7:1–13:1</strong>
+				</SectionCard>
+
+				<SectionCard
+					eyebrow="Module"
+					title="Simulador de impresión"
+					description="Evalúa cómo cambia el contraste al pasar de pantalla a láser, inkjet, CMYK y papel periódico."
+				>
+					<div class="scenario-grid">
+						{#each printScenarios as scenario}
+							<article class="scenario">
+								<div class="scenario-swatch">
+									<div style={`background:${scenario.background}`}></div>
+									<div style={`background:${scenario.foreground}`}></div>
+								</div>
+								<strong>{scenario.mode.label}</strong>
+								<p>{scenario.mode.description}</p>
+								<span>{scenario.ratio.toFixed(2)}:1</span>
+							</article>
+						{/each}
 					</div>
-				</div>
-				<p class="support-copy">{fatigue.description} Útil para evaluar confort de lectura, dislexia y sensibilidad visual.</p>
-			</div>
-		</SectionCard>
-
-		<SectionCard
-			eyebrow="Module"
-			title="Contraste semántico"
-			description="Comprueba que error, éxito, advertencia e info sigan siendo distinguibles entre sí bajo distintas condiciones de visión."
-		>
-			<div class="semantic-inputs">
-				<label><span>Error</span><input bind:value={semanticError} /></label>
-				<label><span>Éxito</span><input bind:value={semanticSuccess} /></label>
-				<label><span>Advertencia</span><input bind:value={semanticWarning} /></label>
-				<label><span>Info</span><input bind:value={semanticInfo} /></label>
+				</SectionCard>
 			</div>
 
-			<div class="semantic-summary-grid">
-				{#each semanticConditionSummaries as summary}
-					<article class:selected={summary.condition.id === selectedVision} class="semantic-summary">
-						<strong>{summary.condition.label}</strong>
-						<p>{summary.clear} claras · {summary.borderline} frontera · {summary.risky} riesgosas</p>
-					</article>
-				{/each}
-			</div>
-
-			{#if currentSemanticSummary}
-				<div class="semantic-table">
-					{#each currentSemanticSummary.scores as score}
-						<div class={`semantic-row ${toneClass(score.status)}`}>
-							<strong>{score.a} vs {score.b}</strong>
-							<span>ΔOKLab {score.delta.toFixed(3)}</span>
-							<span>{score.ratio.toFixed(2)}:1</span>
-							<em>{colorDistanceDescription(score.delta)}</em>
+			<div class="simulation-grid">
+				<SectionCard
+					eyebrow="Module"
+					title="Fatiga visual"
+					description="El objetivo no es solo aprobar. También importa que el contraste se sienta cómodo, sereno y sostenible en lectura prolongada."
+				>
+					<div class="fatigue-card">
+						<div class="spectrum">
+							<div class="band low"></div>
+							<div class="band mid"></div>
+							<div class="band opt"></div>
+							<div class="band high"></div>
+							<div class="needle" style={`left:${fatiguePosition}%`}></div>
 						</div>
-					{/each}
-				</div>
-			{/if}
-		</SectionCard>
-
-		<SectionCard
-			eyebrow="Module"
-			title="Simulador de impresión"
-			description="Compara cómo cambia el contraste al pasar de pantalla a láser B&N, inkjet B&N, CMYK y papel periódico."
-		>
-			<div class="scenario-grid">
-				{#each printScenarios as scenario}
-					<article class="scenario">
-						<div class="scenario-swatch">
-							<div style={`background:${scenario.background}`}></div>
-							<div style={`background:${scenario.foreground}`}></div>
-						</div>
-						<strong>{scenario.mode.label}</strong>
-						<p>{scenario.mode.description}</p>
-						<span>{scenario.ratio.toFixed(2)}:1</span>
-					</article>
-				{/each}
-			</div>
-		</SectionCard>
-	</div>
-
-	<section class="palette-area" id="palette">
-		<SectionCard
-			eyebrow="Palette"
-			title="Generador perceptual de 12 pasos"
-			description="Toma un color base y crea escalas light/dark en OKLCH, con usos semánticos, contraste contra blanco y negro y exportación lista para tokens."
-		>
-			<div class="palette-controls">
-				<label>
-					<span>Color base</span>
-					<input
-						type="text"
-						value={paletteInput}
-						on:input={(event) => setColorInput('palette', (event.currentTarget as HTMLInputElement).value)}
-					/>
-				</label>
-				<label>
-					<span>Nombre token</span>
-					<input type="text" bind:value={paletteName} />
-				</label>
-				<div class="palette-chip">
-					<span>Base</span>
-					<strong>{paletteParsed.ok ? rgbaToOklchString(paletteParsed.color) : 'Color inválido'}</strong>
-				</div>
-			</div>
-
-			<div class="palette-stack">
-				<PaletteStrip
-					title="Escala"
-					theme="light"
-					tones={palette.light}
-					selectedStep={selectedLightStep}
-					on:select={(event) => (selectedLightStep = event.detail)}
-				/>
-				{#if selectedLightTone}
-					<div class="tone-detail">
-						<div class="tone-swatch" style={`background:${selectedLightTone.hex}`}></div>
-						<div>
-							<span class="micro-label">Light step {selectedLightTone.step}</span>
-							<strong>{selectedLightTone.label}</strong>
-							<p>{selectedLightTone.hex} · {selectedLightTone.oklch}</p>
-						</div>
-						<div class="tone-ratios">
-							<span>on white {selectedLightTone.contrastOnWhite.toFixed(2)}:1</span>
-							<span>on black {selectedLightTone.contrastOnBlack.toFixed(2)}:1</span>
-						</div>
-					</div>
-				{/if}
-			</div>
-
-			<div class="palette-stack">
-				<PaletteStrip
-					title="Escala"
-					theme="dark"
-					tones={palette.dark}
-					selectedStep={selectedDarkStep}
-					on:select={(event) => (selectedDarkStep = event.detail)}
-				/>
-				{#if selectedDarkTone}
-					<div class="tone-detail">
-						<div class="tone-swatch" style={`background:${selectedDarkTone.hex}`}></div>
-						<div>
-							<span class="micro-label">Dark step {selectedDarkTone.step}</span>
-							<strong>{selectedDarkTone.label}</strong>
-							<p>{selectedDarkTone.hex} · {selectedDarkTone.oklch}</p>
-						</div>
-						<div class="tone-ratios">
-							<span>on white {selectedDarkTone.contrastOnWhite.toFixed(2)}:1</span>
-							<span>on black {selectedDarkTone.contrastOnBlack.toFixed(2)}:1</span>
-						</div>
-					</div>
-				{/if}
-			</div>
-
-			<div class="recommendations">
-				<div>
-					<span class="micro-label">Guía de uso</span>
-					<p>
-						Pasos 1-3 para fondos, 4-6 para UI y bordes, 7-9 para sólidos y CTA, 10-12 para texto y contraste
-						alto.
-					</p>
-				</div>
-				<div class="recommended-grid">
-					{#each recommendedPalettePairs as pair}
-						<article class="recommended-pair">
-							<div class="recommended-preview" style={`background:${pair.background.hex}; color:${pair.foreground.hex}; border-color:${pair.foreground.hex}`}>
-								Aa
+						<div class="module-copy">
+							<div>
+								<span class="subtle-label">Estado</span>
+								<strong>{fatigue.label}</strong>
 							</div>
 							<div>
-								<strong>{pair.label}</strong>
-								<p>{pair.ratio.toFixed(2)}:1 · {pair.apca.toFixed(1)} Lc</p>
+								<span class="subtle-label">Zona óptima</span>
+								<strong>7:1–13:1</strong>
 							</div>
+						</div>
+						<p class="support-copy">{fatigue.description} Especialmente útil al revisar confort de lectura y sensibilidad visual.</p>
+					</div>
+				</SectionCard>
+
+				<SectionCard
+					eyebrow="Signals"
+					title="Capas visibles"
+					description="Un resumen ejecutivo del par final que ve la persona usuaria bajo la condición activa."
+				>
+					<div class="effective-pair">
+						<div class="effective-swatch">
+							<div class="bg" style={`background:${previewBackground}`}></div>
+							<div class="fg" style={`background:${previewForeground}`}></div>
+						</div>
+						<div class="effective-meta">
+							<div>
+								<span class="subtle-label">Foreground visible</span>
+								<strong>{pipeline ? rgbaToHex(pipeline.foreground) : '—'}</strong>
+								<p>{pipeline ? rgbaToOklchString(pipeline.foreground) : '—'}</p>
+							</div>
+							<div>
+								<span class="subtle-label">Background visible</span>
+								<strong>{pipeline ? rgbaToHex(pipeline.background) : '—'}</strong>
+								<p>{pipeline ? rgbaToOklchString(pipeline.background) : '—'}</p>
+							</div>
+						</div>
+					</div>
+				</SectionCard>
+			</div>
+
+			<SectionCard
+				eyebrow="Module"
+				title="Contraste semántico"
+				description="Revisa si error, éxito, advertencia e info siguen siendo distinguibles entre sí bajo diferentes condiciones de visión."
+			>
+				<div class="semantic-inputs">
+					<label><span>Error</span><input bind:value={semanticError} /></label>
+					<label><span>Éxito</span><input bind:value={semanticSuccess} /></label>
+					<label><span>Advertencia</span><input bind:value={semanticWarning} /></label>
+					<label><span>Info</span><input bind:value={semanticInfo} /></label>
+				</div>
+
+				<div class="semantic-summary-grid">
+					{#each semanticConditionSummaries as summary}
+						<article class:selected={summary.condition.id === selectedVision} class="semantic-summary">
+							<strong>{summary.condition.label}</strong>
+							<p>{summary.clear} claras · {summary.borderline} frontera · {summary.risky} riesgosas</p>
 						</article>
 					{/each}
 				</div>
-			</div>
 
-			<div class="export-grid">
-				<article class="export-card">
-					<div class="export-head">
-						<strong>CSS custom properties</strong>
-						<button type="button" class="chip" on:click={() => copyText('CSS variables', cssExport)}>Copiar</button>
+				{#if currentSemanticSummary}
+					<div class="semantic-table">
+						{#each currentSemanticSummary.scores as score}
+							<div class={`semantic-row ${toneClass(score.status)}`}>
+								<strong>{score.a} vs {score.b}</strong>
+								<span>ΔOKLab {score.delta.toFixed(3)}</span>
+								<span>{score.ratio.toFixed(2)}:1</span>
+								<em>{colorDistanceDescription(score.delta)}</em>
+							</div>
+						{/each}
 					</div>
-					<pre>{cssExport}</pre>
-				</article>
+				{/if}
+			</SectionCard>
+		</section>
+	{:else}
+		<section class="tab-panel" role="tabpanel" id="palette">
+			<SectionCard
+				eyebrow="Palette"
+				title="Generador perceptual de 12 pasos"
+				description="Una escala más editorial y utilizable: cada paso tiene un rol claro y una lectura inmediata contra blanco y negro."
+			>
+				<div class="palette-controls">
+					<label>
+						<span>Color base</span>
+						<input
+							type="text"
+							value={paletteInput}
+							on:input={(event) => setColorInput('palette', (event.currentTarget as HTMLInputElement).value)}
+						/>
+					</label>
+					<label>
+						<span>Nombre token</span>
+						<input type="text" bind:value={paletteName} />
+					</label>
+					<div class="palette-chip">
+						<span class="subtle-label">Base</span>
+						<strong>{paletteParsed.ok ? rgbaToOklchString(paletteParsed.color) : 'Color inválido'}</strong>
+					</div>
+				</div>
 
-				<article class="export-card">
-					<div class="export-head">
-						<strong>Tailwind config</strong>
-						<button type="button" class="chip" on:click={() => copyText('Tailwind config', tailwindExport)}>Copiar</button>
-					</div>
-					<pre>{tailwindExport}</pre>
-				</article>
+				<div class="palette-stack">
+					<PaletteStrip
+						title="Escala"
+						theme="light"
+						tones={palette.light}
+						selectedStep={selectedLightStep}
+						on:select={(event) => (selectedLightStep = event.detail)}
+					/>
+					{#if selectedLightTone}
+						<div class="tone-detail">
+							<div class="tone-swatch" style={`background:${selectedLightTone.hex}`}></div>
+							<div>
+								<span class="subtle-label">Light step {selectedLightTone.step}</span>
+								<strong>{selectedLightTone.label}</strong>
+								<p>{selectedLightTone.hex} · {selectedLightTone.oklch}</p>
+							</div>
+							<div class="tone-ratios">
+								<span>on white {selectedLightTone.contrastOnWhite.toFixed(2)}:1</span>
+								<span>on black {selectedLightTone.contrastOnBlack.toFixed(2)}:1</span>
+							</div>
+						</div>
+					{/if}
+				</div>
 
-				<article class="export-card">
-					<div class="export-head">
-						<strong>W3C DTCG</strong>
-						<button type="button" class="chip" on:click={() => copyText('Design tokens', dtcgExport)}>Copiar</button>
+				<div class="palette-stack">
+					<PaletteStrip
+						title="Escala"
+						theme="dark"
+						tones={palette.dark}
+						selectedStep={selectedDarkStep}
+						on:select={(event) => (selectedDarkStep = event.detail)}
+					/>
+					{#if selectedDarkTone}
+						<div class="tone-detail">
+							<div class="tone-swatch" style={`background:${selectedDarkTone.hex}`}></div>
+							<div>
+								<span class="subtle-label">Dark step {selectedDarkTone.step}</span>
+								<strong>{selectedDarkTone.label}</strong>
+								<p>{selectedDarkTone.hex} · {selectedDarkTone.oklch}</p>
+							</div>
+							<div class="tone-ratios">
+								<span>on white {selectedDarkTone.contrastOnWhite.toFixed(2)}:1</span>
+								<span>on black {selectedDarkTone.contrastOnBlack.toFixed(2)}:1</span>
+							</div>
+						</div>
+					{/if}
+				</div>
+
+				<div class="recommendations">
+					<div>
+						<span class="subtle-label">Guía de uso</span>
+						<p>
+							Pasos 1-3 para fondos, 4-6 para UI y bordes, 7-9 para sólidos y CTA, 10-12 para texto y contraste
+							alto.
+						</p>
 					</div>
-					<pre>{dtcgExport}</pre>
-				</article>
-			</div>
-		</SectionCard>
-	</section>
+					<div class="recommended-grid">
+						{#each recommendedPalettePairs as pair}
+							<article class="recommended-pair">
+								<div class="recommended-preview" style={`background:${pair.background.hex}; color:${pair.foreground.hex}; border-color:${pair.foreground.hex}`}>
+									Aa
+								</div>
+								<div>
+									<strong>{pair.label}</strong>
+									<p>{pair.ratio.toFixed(2)}:1 · {pair.apca.toFixed(1)} Lc</p>
+								</div>
+							</article>
+						{/each}
+					</div>
+				</div>
+			</SectionCard>
+
+			<SectionCard
+				eyebrow="Export"
+				title="Tokens listos para producción"
+				description="La exportación conserva el tono premium del sistema, pero baja a artefactos prácticos para CSS, Tailwind y Design Tokens."
+			>
+				<div class="export-grid">
+					<article class="export-card">
+						<div class="export-head">
+							<strong>CSS custom properties</strong>
+							<button type="button" class="chip" on:click={() => copyText('CSS variables', cssExport)}>Copiar</button>
+						</div>
+						<pre>{cssExport}</pre>
+					</article>
+
+					<article class="export-card">
+						<div class="export-head">
+							<strong>Tailwind config</strong>
+							<button type="button" class="chip" on:click={() => copyText('Tailwind config', tailwindExport)}>Copiar</button>
+						</div>
+						<pre>{tailwindExport}</pre>
+					</article>
+
+					<article class="export-card">
+						<div class="export-head">
+							<strong>W3C DTCG</strong>
+							<button type="button" class="chip" on:click={() => copyText('Design tokens', dtcgExport)}>Copiar</button>
+						</div>
+						<pre>{dtcgExport}</pre>
+					</article>
+				</div>
+			</SectionCard>
+		</section>
+	{/if}
 </div>
 
 <style>
 	:global(h1, h2, h3) {
-		font-family: 'Fraunces', Georgia, serif;
-		letter-spacing: -0.03em;
+		font-family: 'Newsreader', Georgia, serif;
+		letter-spacing: -0.035em;
+		font-weight: 500;
 	}
 
 	.page {
-		width: min(1440px, calc(100% - 2rem));
-		margin: 0 auto;
-		padding: 2rem 0 4rem;
 		position: relative;
 		z-index: 1;
-	}
-
-	.hero {
+		width: min(1460px, calc(100% - 2rem));
+		margin: 0 auto;
+		padding: 1.6rem 0 4rem;
 		display: grid;
-		grid-template-columns: 1.15fr 0.95fr;
-		gap: 1.5rem;
-		align-items: stretch;
-		margin-bottom: 1.3rem;
+		gap: 1rem;
 	}
 
-	.hero-copy,
-	.hero-panel {
-		border-radius: 32px;
+	.masthead,
+	.workspace-shell {
 		border: 1px solid var(--line);
+		border-radius: 28px;
 		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 22%),
-			rgba(15, 23, 42, 0.7);
-		backdrop-filter: blur(18px);
+			linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0)),
+			var(--surface-1);
 		box-shadow: var(--shadow-lg);
-		padding: 1.5rem;
+		backdrop-filter: blur(18px);
+	}
+
+	.masthead {
+		padding: 1.2rem 1.2rem 1.35rem;
+	}
+
+	.brandline {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		margin-bottom: 1rem;
 	}
 
 	.badge,
-	.micro-label {
+	.section-label,
+	.subtle-label {
 		margin: 0;
-		font-size: 0.76rem;
-		letter-spacing: 0.14em;
+		font-size: 0.72rem;
+		letter-spacing: 0.18em;
 		text-transform: uppercase;
 		color: var(--accent);
 	}
 
-	h1 {
-		margin: 0.9rem 0 0.85rem;
-		font-size: clamp(2.8rem, 7vw, 5.6rem);
-		line-height: 0.96;
-		max-width: 11ch;
+	.brandline span,
+	.lede,
+	.empty,
+	.support-copy,
+	.criterion p,
+	.criterion em,
+	.effective-meta p,
+	.darkmode-meta p,
+	.scenario p,
+	.semantic-summary p,
+	.semantic-row em,
+	.recommended-pair p,
+	.tone-detail p,
+	.preview-card p {
+		color: var(--ink-soft);
+	}
+
+	.masthead-grid {
+		display: grid;
+		grid-template-columns: minmax(0, 0.92fr) minmax(360px, 0.72fr);
+		gap: 1rem;
+		align-items: stretch;
+	}
+
+	.masthead-copy,
+	.masthead-monitor {
+		border: 1px solid var(--line);
+		border-radius: 24px;
+		background: var(--surface-2);
+		padding: 1.5rem;
+	}
+
+	.masthead-copy h1 {
+		margin: 0.75rem 0 0.9rem;
+		max-width: 10ch;
+		font-size: clamp(2.8rem, 6vw, 5rem);
+		line-height: 0.92;
 	}
 
 	.lede {
-		max-width: 60ch;
 		margin: 0;
-		color: var(--ink-soft);
-		font-size: 1.03rem;
-		line-height: 1.7;
+		max-width: 60ch;
+		font-size: 1.04rem;
+		line-height: 1.72;
+	}
+
+	.hero-points {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.65rem;
+		margin-top: 1.2rem;
+	}
+
+	.hero-points span,
+	.monitor-pills span,
+	.chip,
+	.workspace-status strong {
+		border-radius: 999px;
+		border: 1px solid var(--line);
+		background: rgba(255, 255, 255, 0.03);
+		padding: 0.62rem 0.85rem;
 	}
 
 	.hero-actions {
@@ -1022,165 +1304,300 @@
 		margin-top: 1.35rem;
 	}
 
-	.hero-actions a,
-	.chip {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
+	.hero-actions button {
 		border-radius: 999px;
-		border: 1px solid rgba(255, 255, 255, 0.15);
-		padding: 0.8rem 1rem;
-		text-decoration: none;
-		background: rgba(255, 255, 255, 0.05);
+		padding: 0.88rem 1.1rem;
+		font-weight: 600;
 	}
 
-	.hero-panel {
+	.primary {
+		border: 1px solid rgba(255, 255, 255, 0.12);
+		background: linear-gradient(180deg, rgba(184, 148, 98, 0.22), rgba(184, 148, 98, 0.14));
+		color: var(--ink-strong);
+	}
+
+	.secondary {
+		border: 1px solid var(--line-strong);
+		background: rgba(255, 255, 255, 0.03);
+		color: var(--ink-strong);
+	}
+
+	.masthead-monitor {
 		display: grid;
 		gap: 1rem;
 	}
 
-	.hero-chip {
+	.monitor-meta {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 1rem;
+	}
+
+	.monitor-meta strong {
+		display: block;
+		margin-top: 0.35rem;
+		font-size: 1rem;
+	}
+
+	.monitor-pills {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem 1rem;
-		align-items: baseline;
-	}
-
-	.hero-chip span {
-		color: var(--ink-soft);
-	}
-
-	.hero-demo {
-		display: grid;
-		grid-template-columns: 1.2fr 0.8fr;
-		gap: 1rem;
-		min-height: 18rem;
-	}
-
-	.card {
-		border-radius: 28px;
-		border: 1px solid var(--bd);
-		padding: 1.2rem;
-		background: var(--bg);
-		color: var(--fg);
-	}
-
-	.card p,
-	.card span {
-		margin: 0;
-	}
-
-	.headline {
-		display: flex;
-		flex-direction: column;
+		gap: 0.55rem;
 		justify-content: flex-end;
+	}
+
+	.monitor-stage {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 14rem;
+		gap: 0.9rem;
+		--card-bg: var(--monitor-bg);
+		--card-fg: var(--monitor-fg);
+		--card-border: var(--monitor-border);
+	}
+
+	.monitor-editor,
+	.monitor-figures article {
+		border-radius: 22px;
+		border: 1px solid var(--card-border);
+		background: var(--card-bg);
+		color: var(--card-fg);
+	}
+
+	.monitor-editor {
+		min-height: 18.75rem;
+		padding: 1.25rem;
+		display: grid;
+		align-content: end;
 		gap: 0.55rem;
 	}
 
-	.headline h2 {
+	.monitor-editor p,
+	.monitor-editor span,
+	.monitor-editor h2 {
 		margin: 0;
-		font-size: clamp(1.8rem, 4vw, 2.8rem);
+		color: inherit;
 	}
 
-	.stat {
+	.monitor-editor h2 {
+		font-size: clamp(2rem, 3.4vw, 3.2rem);
+		line-height: 0.94;
+		max-width: 10ch;
+	}
+
+	.monitor-figures {
+		display: grid;
+		gap: 0.85rem;
+	}
+
+	.monitor-figures article {
+		padding: 1rem;
 		display: grid;
 		align-content: space-between;
+		min-height: 5.7rem;
 	}
 
-	.stat strong {
-		font-size: clamp(2rem, 6vw, 3.6rem);
-		font-weight: 700;
-		line-height: 0.95;
+	.monitor-figures span {
+		font-size: 0.75rem;
+		text-transform: uppercase;
+		letter-spacing: 0.12em;
+		opacity: 0.74;
 	}
 
-	.control-bar {
+	.monitor-figures strong {
+		font-size: clamp(1.6rem, 3vw, 2.65rem);
+		line-height: 1;
+	}
+
+	.workspace-shell {
+		padding: 1rem 1.1rem 1.15rem;
+		display: grid;
+		gap: 1rem;
+	}
+
+	.workspace-top {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		gap: 1rem;
+		align-items: start;
+	}
+
+	.tablist {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 0.75rem;
+	}
+
+	.tablist button {
+		display: grid;
+		gap: 0.28rem;
+		text-align: left;
+		padding: 0.95rem 1rem;
+		border-radius: 18px;
+		border: 1px solid var(--line);
+		background: rgba(255, 255, 255, 0.02);
+		color: var(--ink-strong);
+		transition:
+			border-color 180ms ease,
+			background 180ms ease,
+			transform 180ms ease;
+	}
+
+	.tablist button.active {
+		border-color: rgba(184, 148, 98, 0.34);
+		background: rgba(184, 148, 98, 0.08);
+		transform: translateY(-1px);
+	}
+
+	.tablist strong {
+		font-size: 1rem;
+	}
+
+	.tablist span {
+		color: var(--ink-soft);
+		font-size: 0.9rem;
+		line-height: 1.45;
+	}
+
+	.workspace-status {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 1rem;
-		align-items: end;
-		padding: 1rem 1.15rem;
-		margin-bottom: 1.2rem;
-		border: 1px solid var(--line);
-		border-radius: 24px;
-		background: rgba(2, 6, 23, 0.54);
-		backdrop-filter: blur(16px);
+		gap: 0.6rem;
+		justify-content: flex-end;
 	}
 
-	.control-bar label,
+	.workspace-status div {
+		display: grid;
+		gap: 0.35rem;
+		text-align: right;
+	}
+
+	.workspace-status strong {
+		color: var(--ink-strong);
+		font-size: 0.92rem;
+	}
+
+	.workspace-controls {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 0.9fr)) minmax(280px, 1.2fr);
+		gap: 0.85rem;
+		align-items: end;
+	}
+
+	label,
 	.palette-controls label,
 	.semantic-inputs label {
 		display: grid;
 		gap: 0.5rem;
-		min-width: 13rem;
 	}
 
-	.control-bar span,
+	label span,
 	.palette-controls span,
 	.semantic-inputs span {
 		color: var(--ink-soft);
-		font-size: 0.84rem;
+		font-size: 0.82rem;
 	}
 
 	select,
 	.palette-controls input,
 	.semantic-inputs input {
-		border: 1px solid var(--line-strong);
+		border: 1px solid var(--line);
 		border-radius: 16px;
-		padding: 0.85rem 0.95rem;
-		background: rgba(2, 6, 23, 0.7);
+		padding: 0.9rem 0.95rem;
+		background: var(--surface-3);
 		color: var(--ink-strong);
 	}
 
-	.main-grid,
-	.module-grid {
+	.pair-card {
 		display: grid;
-		gap: 1.2rem;
+		grid-template-columns: auto 1fr;
+		gap: 0.9rem;
+		align-items: center;
+		padding: 0.9rem 1rem;
+		border-radius: 18px;
+		border: 1px solid var(--line);
+		background: var(--surface-2);
 	}
 
-	.main-grid {
-		grid-template-columns: 1.05fr 0.95fr;
+	.pair-swatches {
+		display: flex;
+		gap: 0.45rem;
 	}
 
-	.module-grid {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		margin-top: 1.2rem;
+	.pair-swatches span {
+		width: 2rem;
+		height: 2rem;
+		border-radius: 999px;
+		border: 1px solid rgba(255, 255, 255, 0.14);
 	}
 
+	.pair-card strong {
+		display: block;
+		margin-top: 0.18rem;
+		font-size: 0.98rem;
+	}
+
+	.pair-card p {
+		margin: 0.22rem 0 0;
+		color: var(--ink-soft);
+		font-size: 0.88rem;
+	}
+
+	.copied {
+		position: sticky;
+		top: 1rem;
+		z-index: 5;
+		justify-self: end;
+		margin-top: -0.15rem;
+		padding: 0.8rem 1rem;
+		border-radius: 999px;
+		background: rgba(145, 168, 123, 0.14);
+		border: 1px solid rgba(145, 168, 123, 0.28);
+		color: #dbe7cf;
+	}
+
+	.tab-panel,
+	.checker-grid,
+	.checker-secondary,
+	.simulation-grid,
+	.simulation-top,
 	.stack,
 	.palette-stack {
-		display: grid;
-		gap: 1.2rem;
-	}
-
-	.color-grid,
-	.metric-grid {
-		display: grid;
-		gap: 0.9rem;
-	}
-
-	.color-grid {
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-	}
-
-	.metric-grid {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-	}
-
-	.metric-grid.compact {
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-	}
-
-	.preset-row,
-	.recommendations,
-	.darkmode-card,
-	.effective-pair {
 		display: grid;
 		gap: 1rem;
 	}
 
-	.preset-row {
+	.checker-grid,
+	.simulation-top,
+	.simulation-grid {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.checker-secondary {
+		grid-template-columns: minmax(0, 1.22fr) minmax(320px, 0.78fr);
 		margin-top: 1rem;
+	}
+
+	.composer-grid,
+	.metric-grid {
+		display: grid;
+		gap: 0.85rem;
+	}
+
+	.composer-grid {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+
+	.toolbar-row {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 1rem;
+		margin-top: 1.1rem;
+	}
+
+	.toolbar-block {
+		display: grid;
+		gap: 0.75rem;
 	}
 
 	.chips {
@@ -1194,45 +1611,159 @@
 	}
 
 	.chip.ghost {
-		background: rgba(2, 6, 23, 0.68);
+		background: rgba(255, 255, 255, 0.015);
 	}
 
-	.empty,
-	.support-copy {
+	.audit-overview {
+		display: grid;
+		gap: 1rem;
+	}
+
+	.audit-hero {
+		display: grid;
+		grid-template-columns: minmax(220px, 0.72fr) minmax(0, 1fr);
+		gap: 0.9rem;
+	}
+
+	.audit-ratio,
+	.audit-preview {
+		border-radius: 22px;
+		border: 1px solid var(--line);
+		background: var(--surface-2);
+		padding: 1.1rem;
+	}
+
+	.audit-ratio strong {
+		display: block;
+		margin-top: 0.45rem;
+		font-size: clamp(2.6rem, 4.5vw, 4.25rem);
+		line-height: 0.9;
+	}
+
+	.audit-ratio p {
+		margin: 0.55rem 0 0;
 		color: var(--ink-soft);
-		line-height: 1.55;
+	}
+
+	.audit-preview {
+		display: grid;
+		gap: 0.8rem;
+	}
+
+	.preview-heading {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 1rem;
+		color: var(--ink-soft);
+	}
+
+	.preview-surface {
+		border-radius: 18px;
+		border: 1px solid var(--preview-border);
+		background: var(--preview-bg);
+		color: var(--preview-fg);
+		min-height: 11rem;
+		padding: 1.15rem;
+		display: grid;
+		align-content: end;
+		gap: 0.45rem;
+	}
+
+	.preview-surface p,
+	.preview-surface span,
+	.preview-surface h3 {
+		margin: 0;
+		color: inherit;
+	}
+
+	.preview-surface h3 {
+		font-size: clamp(1.7rem, 3.2vw, 2.6rem);
+		line-height: 0.92;
+		max-width: 9ch;
+	}
+
+	.metric-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.metric-grid.compact {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+
+	.criterion-list {
+		display: grid;
+		gap: 0.75rem;
+		margin-top: 1rem;
+	}
+
+	.criterion-list.compact {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.criterion {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		padding: 1rem;
+		border-radius: 18px;
+		background: rgba(255, 255, 255, 0.015);
+		border: 1px solid rgba(197, 130, 130, 0.2);
+	}
+
+	.criterion.itemPass {
+		border-color: rgba(145, 168, 123, 0.24);
+	}
+
+	.criterion strong {
+		display: block;
+		margin-bottom: 0.12rem;
+	}
+
+	.criterion p,
+	.criterion em {
+		margin: 0;
+	}
+
+	.criterion-metrics {
+		text-align: right;
+	}
+
+	.criterion-metrics span {
+		display: block;
+		font-weight: 600;
 	}
 
 	.preview-grid {
 		display: grid;
 		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 0.9rem;
+		gap: 0.85rem;
 	}
 
 	.preview-card {
-		min-height: 14rem;
+		min-height: 13.5rem;
 		padding: 1rem;
 		border: 1px solid var(--preview-border);
-		border-radius: 24px;
+		border-radius: 22px;
 		background: var(--preview-bg);
 		color: var(--preview-fg);
 	}
 
 	.preview-kicker {
 		display: inline-flex;
-		margin-bottom: 0.9rem;
-		padding: 0.4rem 0.65rem;
+		margin-bottom: 0.85rem;
+		padding: 0.36rem 0.58rem;
 		border-radius: 999px;
 		background: var(--preview-soft);
-		font-size: 0.76rem;
+		font-size: 0.72rem;
 		text-transform: uppercase;
-		letter-spacing: 0.08em;
+		letter-spacing: 0.1em;
 	}
 
-	.typography h3,
-	.typography p,
-	.alert-box p,
+	.preview-card h3,
 	.preview-card strong,
+	.preview-card p,
 	.preview-card span,
 	.preview-card label,
 	.preview-card a,
@@ -1244,12 +1775,12 @@
 	.button-row {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.8rem;
+		gap: 0.75rem;
 	}
 
 	.preview-button {
 		border-radius: 999px;
-		padding: 0.82rem 1.05rem;
+		padding: 0.82rem 1rem;
 	}
 
 	.preview-button.filled {
@@ -1266,23 +1797,24 @@
 
 	.forms input {
 		width: 100%;
-		margin-top: 0.4rem;
+		margin-top: 0.45rem;
 		border: 1px solid var(--preview-border);
 		background: var(--preview-soft);
 		color: var(--preview-fg);
-		padding: 0.75rem 0.9rem;
+		padding: 0.78rem 0.88rem;
 		border-radius: 14px;
 	}
 
 	.nav nav {
 		display: flex;
-		gap: 0.85rem;
 		flex-wrap: wrap;
+		gap: 0.75rem;
 	}
 
 	.nav a {
-		padding-bottom: 0.3rem;
+		padding-bottom: 0.25rem;
 		border-bottom: 1px solid transparent;
+		text-decoration: none;
 	}
 
 	.nav .active {
@@ -1296,60 +1828,30 @@
 
 	th,
 	td {
-		padding: 0.55rem 0;
+		padding: 0.52rem 0;
 		border-bottom: 1px solid var(--preview-border);
 		text-align: left;
 	}
 
 	.alert-box {
-		margin-top: 0.4rem;
+		margin-top: 0.35rem;
 		padding: 1rem;
-		border-radius: 18px;
+		border-radius: 16px;
 		border: 1px solid var(--preview-border);
-		background: linear-gradient(135deg, rgba(255, 138, 61, 0.18), transparent 72%), var(--preview-soft);
+		background: linear-gradient(135deg, rgba(184, 148, 98, 0.16), transparent 70%), var(--preview-soft);
 	}
 
-	.criterion-list,
-	.semantic-table,
-	.scenario-grid,
-	.export-grid,
-	.semantic-summary-grid,
-	.recommended-grid {
+	.module-copy {
 		display: grid;
-		gap: 0.8rem;
-	}
-
-	.criterion-list {
-		margin-top: 1rem;
-	}
-
-	.criterion {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-		padding: 0.95rem 1rem;
-		border-radius: 18px;
-		background: rgba(2, 6, 23, 0.44);
-		border: 1px solid rgba(251, 113, 133, 0.18);
-	}
-
-	.criterion.itemPass {
-		border-color: rgba(132, 204, 22, 0.24);
-	}
-
-	.criterion p,
-	.criterion em {
-		margin: 0.28rem 0 0;
-		color: var(--ink-soft);
-	}
-
-	.criterion-metrics {
-		text-align: right;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.85rem;
+		margin-bottom: 1rem;
 	}
 
 	.effective-pair {
+		display: grid;
 		grid-template-columns: auto 1fr;
+		gap: 1rem;
 		align-items: center;
 	}
 
@@ -1357,7 +1859,7 @@
 		position: relative;
 		width: 10rem;
 		height: 10rem;
-		border-radius: 32px;
+		border-radius: 28px;
 		overflow: hidden;
 		border: 1px solid var(--line);
 	}
@@ -1375,13 +1877,13 @@
 		inset: 22% 22% auto auto;
 		width: 42%;
 		height: 42%;
-		border-radius: 22px;
-		border: 1px solid rgba(255, 255, 255, 0.22);
+		border-radius: 20px;
+		border: 1px solid rgba(255, 255, 255, 0.18);
 	}
 
 	.effective-meta {
 		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: 1rem;
 	}
 
@@ -1389,45 +1891,35 @@
 	.module-copy strong,
 	.tone-detail strong,
 	.darkmode-meta strong,
-	.palette-chip strong {
+	.palette-chip strong,
+	.scenario strong,
+	.semantic-summary strong,
+	.recommended-pair strong {
 		display: block;
-		margin-top: 0.25rem;
-		font-size: 1.1rem;
-	}
-
-	.effective-meta p,
-	.darkmode-meta p,
-	.tone-detail p {
-		margin: 0.35rem 0 0;
-		color: var(--ink-soft);
-		line-height: 1.5;
-	}
-
-	.module-copy {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 0.9rem;
-		margin-bottom: 1rem;
+		margin-top: 0.24rem;
+		font-size: 1.08rem;
 	}
 
 	.darkmode-card {
+		display: grid;
 		grid-template-columns: auto 1fr;
+		gap: 1rem;
 		align-items: stretch;
 	}
 
 	.darkmode-preview {
 		position: relative;
 		width: 12rem;
-		border-radius: 28px;
+		border-radius: 24px;
 		overflow: hidden;
 		border: 1px solid var(--line);
-		background: rgba(2, 6, 23, 0.6);
+		background: var(--surface-3);
 	}
 
 	.darkmode-bg,
 	.darkmode-fg {
 		position: absolute;
-		border-radius: 22px;
+		border-radius: 18px;
 	}
 
 	.darkmode-bg {
@@ -1435,7 +1927,7 @@
 	}
 
 	.darkmode-fg {
-		inset: 20% 18% 18% 20%;
+		inset: 18% 18% 18% 18%;
 		border: 1px solid rgba(255, 255, 255, 0.18);
 	}
 
@@ -1447,7 +1939,9 @@
 	.scenario-grid,
 	.semantic-summary-grid,
 	.recommended-grid {
+		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.8rem;
 	}
 
 	.scenario,
@@ -1455,17 +1949,17 @@
 	.recommended-pair,
 	.tone-detail,
 	.palette-chip {
-		padding: 0.95rem;
+		padding: 0.95rem 1rem;
 		border-radius: 20px;
 		border: 1px solid var(--line);
-		background: rgba(2, 6, 23, 0.46);
+		background: rgba(255, 255, 255, 0.02);
 	}
 
 	.scenario-swatch {
 		position: relative;
-		height: 5.5rem;
+		height: 5.2rem;
 		margin-bottom: 0.8rem;
-		border-radius: 18px;
+		border-radius: 16px;
 		overflow: hidden;
 		border: 1px solid rgba(255, 255, 255, 0.12);
 	}
@@ -1483,42 +1977,40 @@
 		inset: 20% 20% auto auto;
 		width: 42%;
 		height: 42%;
-		border-radius: 18px;
+		border-radius: 16px;
 		border: 1px solid rgba(255, 255, 255, 0.2);
 	}
 
-	.scenario p,
-	.semantic-summary p,
-	.recommended-pair p {
-		margin: 0.35rem 0 0;
+	.scenario span,
+	.semantic-row span,
+	.tone-ratios span {
 		color: var(--ink-soft);
-		line-height: 1.55;
 	}
 
 	.spectrum {
 		position: relative;
 		display: grid;
 		grid-template-columns: 1.1fr 1fr 1.1fr 1fr;
-		height: 1.2rem;
+		height: 1.15rem;
 		border-radius: 999px;
 		overflow: hidden;
 		border: 1px solid var(--line);
 	}
 
 	.band.low {
-		background: linear-gradient(90deg, rgba(251, 113, 133, 0.9), rgba(255, 138, 61, 0.9));
+		background: linear-gradient(90deg, rgba(197, 130, 130, 0.92), rgba(184, 148, 98, 0.92));
 	}
 
 	.band.mid {
-		background: linear-gradient(90deg, rgba(255, 138, 61, 0.9), rgba(250, 204, 21, 0.86));
+		background: linear-gradient(90deg, rgba(184, 148, 98, 0.92), rgba(181, 162, 110, 0.9));
 	}
 
 	.band.opt {
-		background: linear-gradient(90deg, rgba(132, 204, 22, 0.9), rgba(34, 197, 94, 0.86));
+		background: linear-gradient(90deg, rgba(145, 168, 123, 0.92), rgba(122, 151, 134, 0.9));
 	}
 
 	.band.high {
-		background: linear-gradient(90deg, rgba(34, 211, 238, 0.9), rgba(59, 130, 246, 0.9));
+		background: linear-gradient(90deg, rgba(122, 151, 134, 0.92), rgba(113, 132, 157, 0.9));
 	}
 
 	.needle {
@@ -1526,10 +2018,10 @@
 		top: -0.2rem;
 		transform: translateX(-50%);
 		width: 0.85rem;
-		height: 1.6rem;
+		height: 1.55rem;
 		border-radius: 999px;
-		background: white;
-		box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.14);
+		background: #f8f2e8;
+		box-shadow: 0 0 0 4px rgba(248, 242, 232, 0.12);
 	}
 
 	.semantic-inputs {
@@ -1539,41 +2031,44 @@
 	}
 
 	.semantic-summary.selected {
-		border-color: rgba(255, 138, 61, 0.35);
-		box-shadow: inset 0 0 0 1px rgba(255, 138, 61, 0.12);
+		border-color: rgba(184, 148, 98, 0.34);
+		background: rgba(184, 148, 98, 0.06);
+	}
+
+	.semantic-table {
+		display: grid;
+		gap: 0.75rem;
+		margin-top: 1rem;
 	}
 
 	.semantic-row {
 		display: grid;
-		grid-template-columns: 1.2fr repeat(3, minmax(0, 1fr));
+		grid-template-columns: 1.15fr repeat(3, minmax(0, 1fr));
 		gap: 0.8rem;
-		padding: 0.8rem 0.95rem;
+		padding: 0.92rem 1rem;
 		border-radius: 16px;
-		background: rgba(2, 6, 23, 0.44);
+		background: rgba(255, 255, 255, 0.02);
 		border: 1px solid var(--line);
 	}
 
 	.semantic-row.good {
-		border-color: rgba(132, 204, 22, 0.26);
+		border-color: rgba(145, 168, 123, 0.24);
 	}
 
 	.semantic-row.warn {
-		border-color: rgba(255, 138, 61, 0.26);
+		border-color: rgba(184, 148, 98, 0.26);
 	}
 
 	.semantic-row.bad {
-		border-color: rgba(251, 113, 133, 0.24);
+		border-color: rgba(197, 130, 130, 0.24);
 	}
 
-	.palette-area {
-		margin-top: 1.2rem;
-	}
-
-	.palette-controls {
+	.palette-controls,
+	.recommendations,
+	.tone-detail {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr) auto;
 		gap: 0.9rem;
-		margin-bottom: 1rem;
 		align-items: end;
 	}
 
@@ -1581,8 +2076,7 @@
 		min-width: 16rem;
 	}
 
-	.tone-detail,
-	.recommendations {
+	.tone-detail {
 		grid-template-columns: auto 1fr auto;
 		align-items: center;
 	}
@@ -1598,12 +2092,12 @@
 	.tone-ratios {
 		display: grid;
 		gap: 0.35rem;
-		color: var(--ink-soft);
 		font-size: 0.9rem;
 	}
 
 	.recommendations {
-		margin: 1rem 0;
+		grid-template-columns: minmax(260px, 0.8fr) 1.2fr;
+		margin-top: 1rem;
 		align-items: start;
 	}
 
@@ -1617,20 +2111,22 @@
 	.recommended-preview {
 		display: grid;
 		place-items: center;
-		font-size: 1.3rem;
+		font-size: 1.28rem;
 		font-weight: 700;
 		border-width: 1px;
 		border-style: solid;
 	}
 
 	.export-grid {
+		display: grid;
 		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 0.9rem;
 	}
 
 	.export-card {
-		border-radius: 24px;
+		border-radius: 22px;
 		border: 1px solid var(--line);
-		background: rgba(2, 6, 23, 0.5);
+		background: rgba(255, 255, 255, 0.02);
 		overflow: hidden;
 	}
 
@@ -1649,68 +2145,100 @@
 		overflow: auto;
 		font-size: 0.8rem;
 		line-height: 1.65;
-		color: #cbd5e1;
+		color: #d3cdc4;
 	}
 
-	.copied {
-		margin-left: auto;
-		color: var(--lime);
-		font-size: 0.92rem;
+	button {
+		cursor: pointer;
 	}
 
-	@media (max-width: 1200px) {
-		.hero,
-		.main-grid,
-		.module-grid {
+	@media (max-width: 1240px) {
+		.masthead-grid,
+		.workspace-top,
+		.workspace-controls,
+		.checker-grid,
+		.checker-secondary,
+		.simulation-top,
+		.simulation-grid,
+		.export-grid,
+		.preview-grid,
+		.semantic-inputs,
+		.recommendations,
+		.palette-controls,
+		.tone-detail {
 			grid-template-columns: 1fr;
 		}
 
-		.color-grid,
-		.preview-grid,
-		.export-grid,
-		.semantic-inputs {
+		.composer-grid,
+		.criterion-list.compact,
+		.metric-grid.compact {
 			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
 
-		.palette-controls,
-		.recommendations,
-		.tone-detail {
+		.workspace-status {
+			justify-content: flex-start;
+		}
+
+		.monitor-stage {
 			grid-template-columns: 1fr;
 		}
 	}
 
 	@media (max-width: 820px) {
 		.page {
-			width: min(100% - 1rem, 1440px);
+			width: min(100% - 1rem, 1460px);
 			padding-top: 1rem;
 		}
 
-		.hero-demo,
+		.masthead,
+		.workspace-shell {
+			border-radius: 24px;
+		}
+
+		.masthead-copy h1 {
+			font-size: clamp(2.4rem, 13vw, 4rem);
+		}
+
+		.tablist,
+		.composer-grid,
 		.metric-grid,
 		.metric-grid.compact,
-		.preset-row,
+		.preview-grid,
 		.scenario-grid,
 		.semantic-summary-grid,
 		.recommended-grid,
-		.effective-meta,
+		.semantic-inputs,
+		.criterion-list.compact,
 		.module-copy,
+		.effective-meta,
 		.semantic-row,
-		.preview-grid,
-		.color-grid,
-		.export-grid,
-		.semantic-inputs {
+		.toolbar-row {
 			grid-template-columns: 1fr;
 		}
 
+		.monitor-meta,
+		.brandline,
+		.palette-controls,
+		.tone-detail,
+		.effective-pair,
 		.darkmode-card,
-		.effective-pair {
+		.audit-hero {
 			grid-template-columns: 1fr;
+			flex-direction: column;
+		}
+
+		.monitor-pills {
+			justify-content: flex-start;
 		}
 
 		.effective-swatch,
 		.darkmode-preview {
 			width: 100%;
 			height: 12rem;
+		}
+
+		.workspace-shell {
+			padding: 0.9rem;
 		}
 	}
 </style>

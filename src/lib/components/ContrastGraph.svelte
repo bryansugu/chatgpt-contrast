@@ -46,9 +46,9 @@
 		height: auto;
 		border-radius: 20px;
 		background:
-			linear-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 1px),
-			linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px),
-			rgba(2, 6, 23, 0.56);
+			linear-gradient(rgba(245, 240, 232, 0.04) 1px, transparent 1px),
+			linear-gradient(90deg, rgba(245, 240, 232, 0.03) 1px, transparent 1px),
+			rgba(255, 255, 255, 0.015);
 		background-size: 40px 40px;
 		border: 1px solid var(--line);
 	}
@@ -62,13 +62,13 @@
 	}
 
 	.threshold {
-		stroke: rgba(255, 138, 61, 0.95);
+		stroke: rgba(184, 148, 98, 0.95);
 		stroke-width: 2;
 		stroke-dasharray: 8 8;
 	}
 
 	.marker {
-		stroke: rgba(132, 204, 22, 0.7);
+		stroke: rgba(145, 168, 123, 0.72);
 		stroke-width: 2;
 		stroke-dasharray: 5 6;
 	}

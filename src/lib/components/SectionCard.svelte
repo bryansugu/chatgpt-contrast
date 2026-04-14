@@ -31,11 +31,11 @@
 	.section-card {
 		position: relative;
 		border: 1px solid var(--line);
-		border-radius: 28px;
+		border-radius: 24px;
 		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 24%),
+			linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0)),
 			var(--surface-1);
-		backdrop-filter: blur(22px);
+		backdrop-filter: blur(16px);
 		box-shadow: var(--shadow-lg);
 		overflow: hidden;
 	}
@@ -45,8 +45,8 @@
 		position: absolute;
 		inset: 0;
 		pointer-events: none;
-		background: linear-gradient(120deg, rgba(255, 255, 255, 0.09), transparent 34%, transparent);
-		opacity: 0.55;
+		background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 20%, transparent);
+		opacity: 0.5;
 	}
 
 	.section-head,
@@ -60,11 +60,11 @@
 		align-items: flex-start;
 		justify-content: space-between;
 		gap: 1rem;
-		padding: 1.35rem 1.35rem 0;
+		padding: 1.25rem 1.25rem 0;
 	}
 
 	.content {
-		padding: 1.35rem;
+		padding: 1.25rem;
 	}
 
 	.eyebrow {
@@ -83,7 +83,7 @@
 	.description {
 		margin: 0.45rem 0 0;
 		color: var(--ink-soft);
-		line-height: 1.6;
+		line-height: 1.68;
 		max-width: 72ch;
 	}
 

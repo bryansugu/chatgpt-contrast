@@ -1,22 +1,22 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap');
 
 :root {
-	--ink-strong: #e2e8f0;
-	--ink-soft: #94a3b8;
-	--ink-muted: #64748b;
-	--surface-0: #020617;
-	--surface-1: rgba(15, 23, 42, 0.78);
-	--surface-2: rgba(15, 23, 42, 0.55);
-	--surface-3: rgba(30, 41, 59, 0.92);
-	--line: rgba(148, 163, 184, 0.16);
-	--line-strong: rgba(148, 163, 184, 0.26);
-	--glow: rgba(248, 250, 252, 0.16);
-	--accent: #ff8a3d;
-	--accent-soft: rgba(255, 138, 61, 0.16);
-	--lime: #84cc16;
-	--cyan: #22d3ee;
-	--danger: #fb7185;
-	--shadow-lg: 0 26px 80px rgba(2, 6, 23, 0.55);
+	--ink-strong: #f5f0e8;
+	--ink-soft: #b0aa9d;
+	--ink-muted: #857f76;
+	--surface-0: #0b1016;
+	--surface-1: rgba(16, 20, 28, 0.9);
+	--surface-2: rgba(20, 25, 34, 0.94);
+	--surface-3: rgba(12, 16, 24, 0.96);
+	--line: rgba(245, 240, 232, 0.09);
+	--line-strong: rgba(245, 240, 232, 0.16);
+	--glow: rgba(245, 240, 232, 0.12);
+	--accent: #b89462;
+	--accent-soft: rgba(184, 148, 98, 0.16);
+	--lime: #91a87b;
+	--cyan: #7a9798;
+	--danger: #c58282;
+	--shadow-lg: 0 28px 80px rgba(2, 6, 12, 0.42);
 }
 
 *,
@@ -34,10 +34,10 @@ body {
 	min-width: 320px;
 	color: var(--ink-strong);
 	background:
-		radial-gradient(circle at top left, rgba(34, 211, 238, 0.18), transparent 28%),
-		radial-gradient(circle at 88% 14%, rgba(255, 138, 61, 0.22), transparent 18%),
-		linear-gradient(180deg, #08111f 0%, #020617 56%, #02030b 100%);
-	font-family: 'Space Grotesk', 'Avenir Next', 'Segoe UI', sans-serif;
+		radial-gradient(circle at top left, rgba(184, 148, 98, 0.12), transparent 24%),
+		radial-gradient(circle at 85% 12%, rgba(122, 151, 152, 0.09), transparent 22%),
+		linear-gradient(180deg, #0f141b 0%, #0b1016 56%, #080c12 100%);
+	font-family: 'Manrope', 'Avenir Next', 'Segoe UI', sans-serif;
 }
 
 body::before {
@@ -46,11 +46,11 @@ body::before {
 	inset: 0;
 	pointer-events: none;
 	background-image:
-		linear-gradient(rgba(148, 163, 184, 0.045) 1px, transparent 1px),
-		linear-gradient(90deg, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
-	background-size: 52px 52px;
-	mask-image: radial-gradient(circle at center, black 42%, transparent 92%);
-	opacity: 0.55;
+		linear-gradient(rgba(245, 240, 232, 0.028) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(245, 240, 232, 0.022) 1px, transparent 1px);
+	background-size: 56px 56px;
+	mask-image: radial-gradient(circle at center, black 38%, transparent 88%);
+	opacity: 0.48;
 }
 
 a {

@@ -94,8 +94,8 @@
 		display: grid;
 		gap: 0.9rem;
 		padding: 1rem;
-		border-radius: 24px;
-		background: rgba(2, 6, 23, 0.42);
+		border-radius: 20px;
+		background: rgba(255, 255, 255, 0.018);
 		border: 1px solid var(--line);
 	}
 
@@ -110,7 +110,7 @@
 		position: relative;
 		width: 3.35rem;
 		height: 3.35rem;
-		border-radius: 18px;
+		border-radius: 16px;
 		overflow: hidden;
 		border: 1px solid var(--line-strong);
 	}
@@ -150,11 +150,11 @@
 	}
 
 	.picker {
-		border: 1px solid var(--line-strong);
-		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid var(--line);
+		background: rgba(255, 255, 255, 0.03);
 		color: var(--ink-strong);
 		border-radius: 999px;
-		padding: 0.7rem 1rem;
+		padding: 0.7rem 0.95rem;
 	}
 
 	.input-shell {
@@ -165,8 +165,8 @@
 		width: 100%;
 		padding: 0.95rem 1rem;
 		border-radius: 16px;
-		border: 1px solid var(--line-strong);
-		background: rgba(2, 6, 23, 0.6);
+		border: 1px solid var(--line);
+		background: var(--surface-3);
 		color: var(--ink-strong);
 	}
 
@@ -190,18 +190,18 @@
 
 	.stats span,
 	.error {
-		padding: 0.45rem 0.65rem;
+		padding: 0.42rem 0.64rem;
 		border-radius: 999px;
-		background: rgba(255, 255, 255, 0.05);
-		border: 1px solid rgba(148, 163, 184, 0.14);
+		background: rgba(255, 255, 255, 0.028);
+		border: 1px solid var(--line);
 		font-size: 0.78rem;
 	}
 
 	.error {
 		margin: 0;
-		color: #fecdd3;
-		border-color: rgba(251, 113, 133, 0.26);
-		background: rgba(127, 29, 29, 0.24);
+		color: #f2d8d6;
+		border-color: rgba(197, 130, 130, 0.26);
+		background: rgba(197, 130, 130, 0.08);
 	}
 
 	.sr-only {

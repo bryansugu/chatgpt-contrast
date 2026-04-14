@@ -81,8 +81,8 @@
 	button:hover,
 	button.selected {
 		transform: translateY(-2px);
-		box-shadow: 0 18px 42px rgba(2, 6, 23, 0.32);
-		border-color: rgba(255, 255, 255, 0.32);
+		box-shadow: 0 18px 42px rgba(2, 6, 12, 0.26);
+		border-color: rgba(245, 240, 232, 0.32);
 	}
 
 	strong {
