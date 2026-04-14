@@ -1,6 +1,5 @@
 <script lang="ts">
-	export let content = '';
-	export let label = 'Más información';
+	let { content = '', label = 'Más información' }: { content?: string; label?: string } = $props();
 </script>
 
 <span class="tooltip">

@@ -1,11 +1,19 @@
 <script lang="ts">
 	import Tooltip from './Tooltip.svelte';
 
-	export let label = '';
-	export let value = '';
-	export let detail = '';
-	export let tone: 'default' | 'success' | 'warning' | 'danger' = 'default';
-	export let hint = '';
+	let {
+		label = '',
+		value = '',
+		detail = '',
+		tone = 'default',
+		hint = ''
+	}: {
+		label?: string;
+		value?: string;
+		detail?: string;
+		tone?: 'default' | 'success' | 'warning' | 'danger';
+		hint?: string;
+	} = $props();
 </script>
 
 <article class={`metric ${tone}`}>

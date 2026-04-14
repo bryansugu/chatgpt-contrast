@@ -1,7 +1,19 @@
 <script lang="ts">
-	export let eyebrow = '';
-	export let title = '';
-	export let description = '';
+	import type { Snippet } from 'svelte';
+
+	let {
+		eyebrow = '',
+		title = '',
+		description = '',
+		actions,
+		children
+	}: {
+		eyebrow?: string;
+		title?: string;
+		description?: string;
+		actions?: Snippet;
+		children?: Snippet;
+	} = $props();
 </script>
 
 <section class="section-card">
@@ -18,12 +30,16 @@
 			{/if}
 		</div>
 		<div class="actions">
-			<slot name="actions" />
+			{#if actions}
+				{@render actions()}
+			{/if}
 		</div>
 	</header>
 
 	<div class="content">
-		<slot />
+		{#if children}
+			{@render children()}
+		{/if}
 	</div>
 </section>
 

@@ -1,21 +1,29 @@
 <script lang="ts">
-	export let points: { alpha: number; ratio: number }[] = [];
-	export let threshold = 4.5;
-	export let minAlpha: number | null = null;
+	let {
+		points = [],
+		threshold = 4.5,
+		minAlpha = null
+	}: {
+		points?: { alpha: number; ratio: number }[];
+		threshold?: number;
+		minAlpha?: number | null;
+	} = $props();
 
 	const width = 520;
 	const height = 180;
 
-	$: maxRatio = Math.max(threshold + 1.5, ...points.map((point) => point.ratio), 7);
-	$: path = points
-		.map((point) => {
-			const x = point.alpha * width;
-			const y = height - ((point.ratio - 1) / (maxRatio - 1)) * height;
-			return `${x.toFixed(2)},${y.toFixed(2)}`;
-		})
-		.join(' ');
-	$: thresholdY = height - ((threshold - 1) / (maxRatio - 1)) * height;
-	$: markerX = minAlpha === null ? null : minAlpha * width;
+	let maxRatio = $derived(Math.max(threshold + 1.5, ...points.map((point) => point.ratio), 7));
+	let path = $derived(
+		points
+			.map((point) => {
+				const x = point.alpha * width;
+				const y = height - ((point.ratio - 1) / (maxRatio - 1)) * height;
+				return `${x.toFixed(2)},${y.toFixed(2)}`;
+			})
+			.join(' ')
+	);
+	let thresholdY = $derived(height - ((threshold - 1) / (maxRatio - 1)) * height);
+	let markerX = $derived(minAlpha === null ? null : minAlpha * width);
 </script>
 
 <div class="graph">
