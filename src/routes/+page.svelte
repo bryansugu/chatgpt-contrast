@@ -584,8 +584,8 @@
 							oklchValue={foregroundColor ? rgbaToOklchString(foregroundColor) : '—'}
 							luminance={foregroundColor ? luminanceY(foregroundColor).toFixed(4) : '—'}
 							error={foregroundParsed.ok ? '' : foregroundParsed.error}
-							on:change={(event) => setColorInput('foreground', event.detail)}
-							on:alpha={(event) => (foregroundAlpha = event.detail)}
+							onchange={(val) => setColorInput('foreground', val)}
+							onalpha={(val) => (foregroundAlpha = val)}
 						/>
 
 						<ColorField
@@ -598,8 +598,8 @@
 							oklchValue={backgroundColor ? rgbaToOklchString(backgroundColor) : '—'}
 							luminance={backgroundColor ? luminanceY(backgroundColor).toFixed(4) : '—'}
 							error={backgroundParsed.ok ? '' : backgroundParsed.error}
-							on:change={(event) => setColorInput('background', event.detail)}
-							on:alpha={(event) => (backgroundAlpha = event.detail)}
+							onchange={(val) => setColorInput('background', val)}
+							onalpha={(val) => (backgroundAlpha = val)}
 						/>
 
 						<ColorField
@@ -612,8 +612,8 @@
 							oklchValue={surfaceColor ? rgbaToOklchString(surfaceColor) : '—'}
 							luminance={surfaceColor ? luminanceY(surfaceColor).toFixed(4) : '—'}
 							error={surfaceParsed.ok ? '' : surfaceParsed.error}
-							on:change={(event) => setColorInput('surface', event.detail)}
-							on:alpha={(event) => (surfaceAlpha = event.detail)}
+							onchange={(val) => setColorInput('surface', val)}
+							onalpha={(val) => (surfaceAlpha = val)}
 						/>
 					</div>
 
@@ -763,8 +763,10 @@
 						<article class="preview-card table">
 							<span class="preview-kicker">Tablas</span>
 							<table>
-								<tbody>
+								<thead>
 									<tr><th>Token</th><th>Ratio</th></tr>
+								</thead>
+								<tbody>
 									<tr><td>solid / text</td><td>{ratio.toFixed(2)}:1</td></tr>
 									<tr><td>APCA</td><td>{Math.abs(apca).toFixed(1)} Lc</td></tr>
 								</tbody>
@@ -894,8 +896,10 @@
 						<article class="preview-card table">
 							<span class="preview-kicker">Tablas</span>
 							<table>
-								<tbody>
+								<thead>
 									<tr><th>Mode</th><th>Status</th></tr>
+								</thead>
+								<tbody>
 									<tr><td>{currentPrint.label}</td><td>{criteriaSummary}</td></tr>
 									<tr><td>{currentAmbient.label}</td><td>{fatigue.label}</td></tr>
 								</tbody>
@@ -1113,7 +1117,7 @@
 						theme="light"
 						tones={palette.light}
 						selectedStep={selectedLightStep}
-						on:select={(event) => (selectedLightStep = event.detail)}
+						onselect={(step) => (selectedLightStep = step)}
 					/>
 					{#if selectedLightTone}
 						<div class="tone-detail">
@@ -1137,7 +1141,7 @@
 						theme="dark"
 						tones={palette.dark}
 						selectedStep={selectedDarkStep}
-						on:select={(event) => (selectedDarkStep = event.detail)}
+						onselect={(step) => (selectedDarkStep = step)}
 					/>
 					{#if selectedDarkTone}
 						<div class="tone-detail">

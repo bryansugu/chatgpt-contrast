@@ -6,12 +6,6 @@ import type {
 	VisionCondition
 } from './types';
 
-const IDENTITY_MATRIX = [
-	[1, 0, 0],
-	[0, 1, 0],
-	[0, 0, 1]
-];
-
 export const VISION_CONDITIONS: VisionCondition[] = [
 	{
 		id: 'normal',
@@ -327,4 +321,3 @@ export const STORAGE_KEYS = {
 	history: 'chromacheck-history'
 };
 
-export { IDENTITY_MATRIX };

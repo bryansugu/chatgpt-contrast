@@ -1,49 +1,59 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { createEventDispatcher } from 'svelte';
 	import { clampRgb, converter, formatHex, parse } from 'culori';
 	import Tooltip from './Tooltip.svelte';
 
-	export let label = '';
-	export let description = '';
-	export let value = '';
-	export let alpha = 1;
-	export let preview = 'rgb(255 255 255)';
-	export let hexValue = '';
-	export let oklchValue = '';
-	export let luminance = '';
-	export let error = '';
+	let {
+		label = '',
+		description = '',
+		value = '',
+		alpha = 1,
+		preview = 'rgb(255 255 255)',
+		hexValue = '',
+		oklchValue = '',
+		luminance = '',
+		error = '',
+		onchange,
+		onalpha
+	}: {
+		label?: string;
+		description?: string;
+		value?: string;
+		alpha?: number;
+		preview?: string;
+		hexValue?: string;
+		oklchValue?: string;
+		luminance?: string;
+		error?: string;
+		onchange?: (value: string) => void;
+		onalpha?: (value: number) => void;
+	} = $props();
 
 	type EditorTab = 'visual' | 'channels';
 	type ChannelMode = 'rgb' | 'hsl';
 
-	const dispatch = createEventDispatcher<{
-		change: string;
-		alpha: number;
-	}>();
-
 	const toRgb = converter('rgb');
 	const toHsl = converter('hsl');
 
-	let picking = false;
-	let copied = false;
-	let editorTab: EditorTab = 'visual';
-	let channelMode: ChannelMode = 'rgb';
+	let picking = $state(false);
+	let copied = $state(false);
+	let editorTab: EditorTab = $state('visual');
+	let channelMode: ChannelMode = $state('rgb');
 
-	$: parsed = parse(value);
-	$: rgb = clampRgb(toRgb(parsed ?? '#000000')) ?? { r: 0, g: 0, b: 0, alpha: 1 };
-	$: hsl = toHsl(parsed ?? '#000000') ?? { h: 0, s: 0, l: 0 };
-	$: rgbChannels = {
+	let parsed = $derived(parse(value));
+	let rgb = $derived(clampRgb(toRgb(parsed ?? '#000000')) ?? { r: 0, g: 0, b: 0, alpha: 1 });
+	let hsl = $derived(toHsl(parsed ?? '#000000') ?? { h: 0, s: 0, l: 0 });
+	let rgbChannels = $derived({
 		r: Math.round((rgb.r ?? 0) * 255),
 		g: Math.round((rgb.g ?? 0) * 255),
 		b: Math.round((rgb.b ?? 0) * 255)
-	};
-	$: hslChannels = {
+	});
+	let hslChannels = $derived({
 		h: Math.round((hsl.h ?? 0) % 360),
 		s: Math.round((hsl.s ?? 0) * 100),
 		l: Math.round((hsl.l ?? 0) * 100)
-	};
-	$: pickerHex = parsed ? formatHex(parsed) : '#000000';
+	});
+	let pickerHex = $derived(parsed ? formatHex(parsed) : '#000000');
 
 	async function pickFromScreen() {
 		if (!browser || !('EyeDropper' in window)) {
@@ -55,26 +65,26 @@
 		try {
 			const eyeDropper = new EyeDropper();
 			const result = await eyeDropper.open();
-			dispatch('change', result.sRGBHex);
-		} catch (error) {
-			console.debug(error);
+			onchange?.(result.sRGBHex);
+		} catch (err) {
+			console.debug(err);
 		} finally {
 			picking = false;
 		}
 	}
 
 	function updatePicker(event: Event) {
-		dispatch('change', (event.currentTarget as HTMLInputElement).value);
+		onchange?.((event.currentTarget as HTMLInputElement).value);
 	}
 
 	function updateRgbChannel(channel: 'r' | 'g' | 'b', next: number) {
 		const values = { ...rgbChannels, [channel]: next };
-		dispatch('change', `rgb(${values.r} ${values.g} ${values.b})`);
+		onchange?.(`rgb(${values.r} ${values.g} ${values.b})`);
 	}
 
 	function updateHslChannel(channel: 'h' | 's' | 'l', next: number) {
 		const values = { ...hslChannels, [channel]: next };
-		dispatch('change', `hsl(${values.h} ${values.s}% ${values.l}%)`);
+		onchange?.(`hsl(${values.h} ${values.s}% ${values.l}%)`);
 	}
 
 	async function copyCurrent() {
@@ -101,7 +111,7 @@
 					type="color"
 					value={pickerHex}
 					aria-label={`Selector visual para ${label}`}
-					on:input={updatePicker}
+					oninput={updatePicker}
 				/>
 			</div>
 
@@ -115,10 +125,10 @@
 		</div>
 
 		<div class="field-actions">
-			<button class="action action-accent" type="button" on:click={pickFromScreen} disabled={picking}>
+			<button class="action action-accent" type="button" onclick={pickFromScreen} disabled={picking}>
 				{picking ? 'Capturando…' : 'Tomar color'}
 			</button>
-			<button class="action" type="button" on:click={copyCurrent}>
+			<button class="action" type="button" onclick={copyCurrent}>
 				{copied ? 'Copiado' : 'Copiar'}
 			</button>
 		</div>
@@ -129,8 +139,8 @@
 			<span>Valor</span>
 			<input
 				type="text"
-				value={value}
-				on:input={(event) => dispatch('change', (event.currentTarget as HTMLInputElement).value)}
+				{value}
+				oninput={(event) => onchange?.((event.currentTarget as HTMLInputElement).value)}
 				placeholder="#0f172a / rgb() / hsl() / oklch()"
 				spellcheck="false"
 			/>
@@ -139,7 +149,7 @@
 		<label class="picker-shell">
 			<span>Selector</span>
 			<div class="picker-box">
-				<input type="color" value={pickerHex} aria-label={`Color picker para ${label}`} on:input={updatePicker} />
+				<input type="color" value={pickerHex} aria-label={`Color picker para ${label}`} oninput={updatePicker} />
 				<strong>{pickerHex}</strong>
 			</div>
 		</label>
@@ -147,14 +157,14 @@
 
 	<div class="editor-toggle">
 		<div class="segmented">
-			<button type="button" class:active={editorTab === 'visual'} on:click={() => (editorTab = 'visual')}>Resumen</button>
-			<button type="button" class:active={editorTab === 'channels'} on:click={() => (editorTab = 'channels')}>Canales</button>
+			<button type="button" class:active={editorTab === 'visual'} onclick={() => (editorTab = 'visual')}>Resumen</button>
+			<button type="button" class:active={editorTab === 'channels'} onclick={() => (editorTab = 'channels')}>Canales</button>
 		</div>
 
 		{#if editorTab === 'channels'}
 			<div class="segmented compact">
-				<button type="button" class:active={channelMode === 'rgb'} on:click={() => (channelMode = 'rgb')}>RGB</button>
-				<button type="button" class:active={channelMode === 'hsl'} on:click={() => (channelMode = 'hsl')}>HSL</button>
+				<button type="button" class:active={channelMode === 'rgb'} onclick={() => (channelMode = 'rgb')}>RGB</button>
+				<button type="button" class:active={channelMode === 'hsl'} onclick={() => (channelMode = 'hsl')}>HSL</button>
 			</div>
 		{/if}
 	</div>
@@ -175,28 +185,28 @@
 			{#if channelMode === 'rgb'}
 				<label class="channel">
 					<div class="channel-head"><span>Red</span><strong>{rgbChannels.r}</strong></div>
-					<input type="range" min="0" max="255" step="1" value={rgbChannels.r} on:input={(event) => updateRgbChannel('r', Number((event.currentTarget as HTMLInputElement).value))} />
+					<input type="range" min="0" max="255" step="1" value={rgbChannels.r} oninput={(event) => updateRgbChannel('r', Number((event.currentTarget as HTMLInputElement).value))} />
 				</label>
 				<label class="channel">
 					<div class="channel-head"><span>Green</span><strong>{rgbChannels.g}</strong></div>
-					<input type="range" min="0" max="255" step="1" value={rgbChannels.g} on:input={(event) => updateRgbChannel('g', Number((event.currentTarget as HTMLInputElement).value))} />
+					<input type="range" min="0" max="255" step="1" value={rgbChannels.g} oninput={(event) => updateRgbChannel('g', Number((event.currentTarget as HTMLInputElement).value))} />
 				</label>
 				<label class="channel">
 					<div class="channel-head"><span>Blue</span><strong>{rgbChannels.b}</strong></div>
-					<input type="range" min="0" max="255" step="1" value={rgbChannels.b} on:input={(event) => updateRgbChannel('b', Number((event.currentTarget as HTMLInputElement).value))} />
+					<input type="range" min="0" max="255" step="1" value={rgbChannels.b} oninput={(event) => updateRgbChannel('b', Number((event.currentTarget as HTMLInputElement).value))} />
 				</label>
 			{:else}
 				<label class="channel">
 					<div class="channel-head"><span>Hue</span><strong>{hslChannels.h}</strong></div>
-					<input type="range" min="0" max="360" step="1" value={hslChannels.h} on:input={(event) => updateHslChannel('h', Number((event.currentTarget as HTMLInputElement).value))} />
+					<input type="range" min="0" max="360" step="1" value={hslChannels.h} oninput={(event) => updateHslChannel('h', Number((event.currentTarget as HTMLInputElement).value))} />
 				</label>
 				<label class="channel">
 					<div class="channel-head"><span>Saturation</span><strong>{hslChannels.s}%</strong></div>
-					<input type="range" min="0" max="100" step="1" value={hslChannels.s} on:input={(event) => updateHslChannel('s', Number((event.currentTarget as HTMLInputElement).value))} />
+					<input type="range" min="0" max="100" step="1" value={hslChannels.s} oninput={(event) => updateHslChannel('s', Number((event.currentTarget as HTMLInputElement).value))} />
 				</label>
 				<label class="channel">
 					<div class="channel-head"><span>Lightness</span><strong>{hslChannels.l}%</strong></div>
-					<input type="range" min="0" max="100" step="1" value={hslChannels.l} on:input={(event) => updateHslChannel('l', Number((event.currentTarget as HTMLInputElement).value))} />
+					<input type="range" min="0" max="100" step="1" value={hslChannels.l} oninput={(event) => updateHslChannel('l', Number((event.currentTarget as HTMLInputElement).value))} />
 				</label>
 			{/if}
 		</div>
@@ -213,7 +223,7 @@
 			max="1"
 			step="0.01"
 			value={alpha}
-			on:input={(event) => dispatch('alpha', Number((event.currentTarget as HTMLInputElement).value))}
+			oninput={(event) => onalpha?.(Number((event.currentTarget as HTMLInputElement).value))}
 		/>
 	</label>
 

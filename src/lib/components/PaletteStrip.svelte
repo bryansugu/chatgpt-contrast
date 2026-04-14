@@ -1,13 +1,19 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import type { PaletteTone } from '$lib/color/types';
 
-	export let title = '';
-	export let theme: 'light' | 'dark' = 'light';
-	export let tones: PaletteTone[] = [];
-	export let selectedStep = 8;
-
-	const dispatch = createEventDispatcher<{ select: number }>();
+	let {
+		title = '',
+		theme = 'light',
+		tones = [],
+		selectedStep = 8,
+		onselect
+	}: {
+		title?: string;
+		theme?: 'light' | 'dark';
+		tones?: PaletteTone[];
+		selectedStep?: number;
+		onselect?: (step: number) => void;
+	} = $props();
 </script>
 
 <div class="palette-strip">
@@ -22,7 +28,7 @@
 				type="button"
 				class:selected={tone.step === selectedStep}
 				style={`background:${tone.hex}; color:${tone.contrastOnWhite > tone.contrastOnBlack ? '#f8fafc' : '#020617'}`}
-				on:click={() => dispatch('select', tone.step)}
+				onclick={() => onselect?.(tone.step)}
 			>
 				<strong>{tone.step}</strong>
 				<span>{tone.label}</span>

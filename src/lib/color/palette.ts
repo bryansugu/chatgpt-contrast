@@ -122,20 +122,3 @@ export function generateDarkModePair(
 	};
 }
 
-export function paletteRecommendedPairs(palette: GeneratedPalette) {
-	const picks = [
-		['1', palette.light[0], palette.light[10]],
-		['2', palette.light[1], palette.light[11]],
-		['3', palette.light[7], palette.light[0]],
-		['4', palette.dark[0], palette.dark[10]],
-		['5', palette.dark[7], palette.dark[11]],
-		['6', palette.dark[8], palette.dark[0]]
-	] as const;
-
-	return picks.map(([id, background, foreground]) => ({
-		id,
-		background: background?.hex ?? '#000000',
-		foreground: foreground?.hex ?? '#ffffff',
-		ratio: background && foreground ? wcagContrast(parseUserColor(foreground.hex).ok ? (parseUserColor(foreground.hex) as {ok:true;color:RgbaColor}).color : {r:1,g:1,b:1,alpha:1}, parseUserColor(background.hex).ok ? (parseUserColor(background.hex) as {ok:true;color:RgbaColor}).color : {r:0,g:0,b:0,alpha:1}) : 0
-	}));
-}
