@@ -1,0 +1,27 @@
+{
+  "name": "chromacheck",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "svelte-kit sync && vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "start": "node build"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-node": "^5.5.4",
+    "@sveltejs/kit": "^2.57.1",
+    "@sveltejs/vite-plugin-svelte": "^5.1.1",
+    "@types/node": "^25.6.0",
+    "svelte": "^5.55.4",
+    "svelte-check": "^4.4.6",
+    "typescript": "^6.0.2",
+    "vite": "^6.4.2"
+  },
+  "dependencies": {
+    "apca-w3": "^0.1.9",
+    "culori": "^4.0.2"
+  }
+}
