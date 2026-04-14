@@ -91,8 +91,8 @@
 </script>
 
 <div class="field">
-	<div class="field-top">
-		<div class="field-main">
+	<div class="field-header">
+		<div class="identity">
 			<div class="swatch-shell">
 				<div class="checker"></div>
 				<div class="swatch" style={`background:${preview}`}></div>
@@ -106,7 +106,7 @@
 			</div>
 
 			<div class="meta">
-				<div class="label-row">
+				<div class="title-row">
 					<p class="label">{label}</p>
 					<Tooltip content={description} label={`Info sobre ${label}`} />
 				</div>
@@ -115,16 +115,16 @@
 		</div>
 
 		<div class="field-actions">
-			<button class="action" type="button" on:click={pickFromScreen} disabled={picking}>
-				{picking ? 'Capturando…' : 'EyeDropper'}
+			<button class="action action-accent" type="button" on:click={pickFromScreen} disabled={picking}>
+				{picking ? 'Capturando…' : 'Tomar color'}
 			</button>
-			<button class="action ghost" type="button" on:click={copyCurrent}>
+			<button class="action" type="button" on:click={copyCurrent}>
 				{copied ? 'Copiado' : 'Copiar'}
 			</button>
 		</div>
 	</div>
 
-	<div class="input-grid">
+	<div class="control-grid">
 		<label class="input-shell">
 			<span>Valor</span>
 			<input
@@ -137,7 +137,7 @@
 		</label>
 
 		<label class="picker-shell">
-			<span>Selector visual</span>
+			<span>Selector</span>
 			<div class="picker-box">
 				<input type="color" value={pickerHex} aria-label={`Color picker para ${label}`} on:input={updatePicker} />
 				<strong>{pickerHex}</strong>
@@ -145,11 +145,12 @@
 		</label>
 	</div>
 
-	<div class="segment-row">
+	<div class="editor-toggle">
 		<div class="segmented">
 			<button type="button" class:active={editorTab === 'visual'} on:click={() => (editorTab = 'visual')}>Resumen</button>
 			<button type="button" class:active={editorTab === 'channels'} on:click={() => (editorTab = 'channels')}>Canales</button>
 		</div>
+
 		{#if editorTab === 'channels'}
 			<div class="segmented compact">
 				<button type="button" class:active={channelMode === 'rgb'} on:click={() => (channelMode = 'rgb')}>RGB</button>
@@ -166,6 +167,11 @@
 		</div>
 	{:else}
 		<div class="channel-editor">
+			<div class="editor-caption">
+				<p>{channelMode === 'rgb' ? 'Ajusta canales RGB' : 'Ajusta canales HSL'}</p>
+				<span>Los sliders actualizan el valor en tiempo real.</span>
+			</div>
+
 			{#if channelMode === 'rgb'}
 				<label class="channel">
 					<div class="channel-head"><span>Red</span><strong>{rgbChannels.r}</strong></div>
@@ -197,7 +203,7 @@
 	{/if}
 
 	<label class="range">
-		<div class="label-row">
+		<div class="title-row">
 			<span>Alpha {Math.round(alpha * 100)}%</span>
 			<Tooltip content="El contraste se calcula usando la opacidad real del foreground o background al componerse sobre el surface." label={`Info sobre alpha en ${label}`} />
 		</div>
@@ -225,40 +231,31 @@
 		background: var(--surface-2);
 		border: 1px solid var(--line);
 		box-shadow: var(--shadow-md);
+		min-width: 0;
+		overflow: hidden;
+		container-type: inline-size;
 	}
 
-	.field-top,
-	.field-main,
-	.field-actions,
-	.label-row,
-	.input-grid,
-	.segment-row,
-	.channel-head {
-		display: flex;
+	.field-header {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		gap: 0.8rem;
+		align-items: start;
 	}
 
-	.field-top,
-	.segment-row {
-		justify-content: space-between;
-		gap: 0.85rem;
-		align-items: center;
-	}
-
-	.field-main {
+	.identity {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr);
 		gap: 0.9rem;
 		align-items: center;
-	}
-
-	.field-actions {
-		gap: 0.55rem;
-		flex-wrap: wrap;
+		min-width: 0;
 	}
 
 	.swatch-shell {
 		position: relative;
 		width: 4rem;
 		height: 4rem;
-		border-radius: 20px;
+		border-radius: 18px;
 		overflow: hidden;
 		border: 1px solid var(--line-strong);
 		box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -287,10 +284,12 @@
 
 	.meta {
 		display: grid;
-		gap: 0.28rem;
+		gap: 0.25rem;
+		min-width: 0;
 	}
 
-	.label-row {
+	.title-row {
+		display: flex;
 		align-items: center;
 		gap: 0.45rem;
 	}
@@ -308,6 +307,13 @@
 		line-height: 1.55;
 	}
 
+	.field-actions {
+		display: flex;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+		justify-content: flex-end;
+	}
+
 	.action {
 		border-radius: 12px;
 		border: 1px solid var(--line-strong);
@@ -315,6 +321,7 @@
 		color: var(--ink-strong);
 		padding: 0.72rem 0.85rem;
 		font-weight: 600;
+		white-space: nowrap;
 	}
 
 	.action:hover,
@@ -328,8 +335,10 @@
 		transform: translateY(1px);
 	}
 
-	.action.ghost {
-		background: transparent;
+	.action-accent {
+		background: var(--accent);
+		border-color: transparent;
+		color: white;
 	}
 
 	.action:disabled {
@@ -337,12 +346,11 @@
 		cursor: wait;
 	}
 
-	.input-grid {
-		gap: 0.8rem;
-	}
-
-	.input-grid > * {
-		flex: 1;
+	.control-grid {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 9.5rem;
+		gap: 0.75rem;
+		align-items: end;
 	}
 
 	.input-shell,
@@ -351,6 +359,7 @@
 	.channel {
 		display: grid;
 		gap: 0.45rem;
+		min-width: 0;
 	}
 
 	.input-shell span,
@@ -375,12 +384,11 @@
 	}
 
 	.picker-box {
-		height: 100%;
-		min-height: 3.25rem;
 		display: flex;
 		align-items: center;
-		gap: 0.8rem;
-		padding: 0.55rem 0.7rem;
+		gap: 0.7rem;
+		height: 3.35rem;
+		padding: 0.55rem 0.65rem;
 		border-radius: 14px;
 		border: 1px solid var(--line);
 		background: #fff;
@@ -391,15 +399,25 @@
 	}
 
 	.picker-box input[type='color'] {
-		width: 2.25rem;
-		height: 2.25rem;
+		width: 2rem;
+		height: 2rem;
 		border: 0;
 		background: none;
 		padding: 0;
+		flex: 0 0 auto;
 	}
 
 	.picker-box strong {
-		font-size: 0.92rem;
+		font-size: 0.84rem;
+		line-height: 1.2;
+	}
+
+	.editor-toggle {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		flex-wrap: wrap;
 	}
 
 	.segmented {
@@ -411,16 +429,11 @@
 		background: var(--surface-3);
 	}
 
-	.segmented.compact {
-		transform: scale(0.96);
-		transform-origin: right center;
-	}
-
 	.segmented button {
 		border: 0;
 		background: transparent;
 		color: var(--ink-soft);
-		padding: 0.56rem 0.8rem;
+		padding: 0.58rem 0.82rem;
 		border-radius: 10px;
 		font-weight: 600;
 	}
@@ -440,7 +453,29 @@
 		border: 1px solid var(--line);
 	}
 
+	.editor-caption {
+		display: grid;
+		gap: 0.18rem;
+	}
+
+	.editor-caption p,
+	.editor-caption span {
+		margin: 0;
+	}
+
+	.editor-caption p {
+		font-size: 0.88rem;
+		font-weight: 700;
+		color: var(--ink-strong);
+	}
+
+	.editor-caption span {
+		font-size: 0.8rem;
+		color: var(--ink-soft);
+	}
+
 	.channel-head {
+		display: flex;
 		align-items: center;
 		justify-content: space-between;
 		gap: 1rem;
@@ -478,25 +513,34 @@
 		background: rgba(208, 87, 107, 0.08);
 	}
 
-	@media (max-width: 720px) {
-		.field-top,
-		.input-grid,
-		.segment-row {
+	@container (max-width: 430px) {
+		.field-header,
+		.control-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.field-actions {
+			justify-content: flex-start;
+		}
+
+		.editor-toggle {
 			flex-direction: column;
 			align-items: stretch;
 		}
 
-		.field-main {
-			align-items: flex-start;
-		}
-
-		.field-actions,
 		.segmented {
 			width: 100%;
 		}
 
 		.segmented button {
 			flex: 1;
+		}
+	}
+
+	@container (max-width: 320px) {
+		.identity {
+			grid-template-columns: 1fr;
+			align-items: start;
 		}
 	}
 </style>
