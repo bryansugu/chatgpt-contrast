@@ -6,6 +6,7 @@
 	import MetricCard from '$lib/components/MetricCard.svelte';
 	import PaletteStrip from '$lib/components/PaletteStrip.svelte';
 	import SectionCard from '$lib/components/SectionCard.svelte';
+	import Tooltip from '$lib/components/Tooltip.svelte';
 	import {
 		AMBIENT_CONDITIONS,
 		DEFAULT_SEMANTIC_COLORS,
@@ -48,6 +49,7 @@
 	} from '$lib/color/types';
 
 	type WorkspaceTab = 'checker' | 'simulations' | 'palette';
+	type ThemeMode = 'light' | 'dark';
 
 	const workspaceTabs: { id: WorkspaceTab; label: string; summary: string }[] = [
 		{ id: 'checker', label: 'Checker', summary: 'Composición, ratio y aprobación' },
@@ -56,6 +58,7 @@
 	];
 
 	let activeTab: WorkspaceTab = 'checker';
+	let theme: ThemeMode = 'light';
 	let foregroundInput = '#0f172a';
 	let backgroundInput = '#f8fafc';
 	let surfaceInput = '#ffffff';
@@ -82,6 +85,7 @@
 	let saveTimer: number | undefined;
 	let lastHistorySignature = '';
 	let copied = '';
+	const THEME_STORAGE_KEY = 'chromacheck-theme';
 
 	function setColorInput(layer: 'foreground' | 'background' | 'surface' | 'palette', value: string) {
 		if (layer === 'foreground') {
@@ -177,10 +181,26 @@
 	onMount(() => {
 		readHistory();
 
+		if (browser) {
+			const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+			if (storedTheme === 'light' || storedTheme === 'dark') {
+				theme = storedTheme;
+			}
+			document.documentElement.dataset.theme = theme;
+		}
+
 		return () => {
 			if (saveTimer) clearTimeout(saveTimer);
 		};
 	});
+
+	function setTheme(next: ThemeMode) {
+		theme = next;
+		if (browser) {
+			document.documentElement.dataset.theme = next;
+			localStorage.setItem(THEME_STORAGE_KEY, next);
+		}
+	}
 
 	$: foregroundParsed = parseUserColor(foregroundInput);
 	$: backgroundParsed = parseUserColor(backgroundInput);
@@ -396,23 +416,29 @@
 <div class="page">
 	<header class="masthead">
 		<div class="brandline">
-			<p class="badge">ChromaCheck</p>
-			<span>Contrast intelligence workspace</span>
+			<div class="brand-block">
+				<p class="badge">ChromaCheck</p>
+				<span>Contrast intelligence workspace</span>
+			</div>
+			<div class="theme-toggle" role="tablist" aria-label="Tema visual">
+				<button type="button" class:active={theme === 'light'} on:click={() => setTheme('light')}>Light</button>
+				<button type="button" class:active={theme === 'dark'} on:click={() => setTheme('dark')}>Dark</button>
+			</div>
 		</div>
 
 		<div class="masthead-grid">
 			<div class="masthead-copy">
-				<p class="section-label">A timeless contrast system</p>
-				<h1>La forma más clara, sobria y precisa de evaluar color.</h1>
+				<p class="section-label">Simple, visual, production-ready</p>
+				<h1>Una herramienta de contraste mucho más clara y fácil de usar.</h1>
 				<p class="lede">
-					Un workspace profesional para accesibilidad visual, contraste real y sistemas de color. Todo lo
-					importante vive en un flujo simple: componer, validar, simular y exportar.
+					Reordena el flujo, da contexto real a los resultados y convierte la evaluación de color en una tarea
+					rápida, visual e intuitiva para diseño y producto.
 				</p>
 
 				<div class="hero-points">
-					<span>WCAG 2.2 + APCA</span>
-					<span>Alpha compositing real</span>
-					<span>Visión, luz e impresión</span>
+					<span>Resultados explicados</span>
+					<span>Selector visual mejorado</span>
+					<span>Light + dark mode</span>
 				</div>
 
 				<div class="hero-actions">
@@ -494,7 +520,7 @@
 
 		<div class="workspace-controls">
 			<label>
-				<span>Visión</span>
+				<span class="label-inline">Visión <Tooltip content="Simula cómo cambian los colores y su separación perceptual bajo distintas condiciones visuales." label="Info sobre visión" /></span>
 				<select bind:value={selectedVision}>
 					{#each VISION_CONDITIONS as condition}
 						<option value={condition.id}>{condition.label}</option>
@@ -503,7 +529,7 @@
 			</label>
 
 			<label>
-				<span>Luz ambiental</span>
+				<span class="label-inline">Luz ambiental <Tooltip content="Modela el efecto del brillo ambiente y la pérdida de contraste en pantalla." label="Info sobre luz ambiental" /></span>
 				<select bind:value={selectedAmbient}>
 					{#each AMBIENT_CONDITIONS as condition}
 						<option value={condition.id}>{condition.label}</option>
@@ -512,7 +538,7 @@
 			</label>
 
 			<label>
-				<span>Salida</span>
+				<span class="label-inline">Salida <Tooltip content="Cambia entre pantalla e impresión para estimar cómo se modifica el contraste final." label="Info sobre salida" /></span>
 				<select bind:value={selectedPrint}>
 					{#each PRINT_MODES as mode}
 						<option value={mode.id}>{mode.label}</option>
@@ -650,24 +676,28 @@
 								value={ratio ? `${ratio.toFixed(2)}:1` : '—'}
 								detail="Relación final de luminancia"
 								tone={ratio >= 7 ? 'success' : ratio >= 4.5 ? 'warning' : 'danger'}
+								hint="WCAG compara luminancia relativa. Úsalo para validar AA y AAA en texto, UI e iconografía."
 							/>
 							<MetricCard
 								label="APCA"
 								value={analysisReady ? `${Math.abs(apca).toFixed(1)} Lc` : '—'}
 								detail={analysisReady ? polarityLabel(apca) : '—'}
 								tone={Math.abs(apca) >= 75 ? 'success' : Math.abs(apca) >= 60 ? 'warning' : 'danger'}
+								hint="APCA mide contraste perceptual. Es especialmente útil para lectura real y jerarquía visual."
 							/>
 							<MetricCard
 								label="Criterios"
 								value={criteriaSummary}
 								detail="Aprobados sobre 11 checks"
 								tone={metricTone(criteria)}
+								hint="Este resumen combina WCAG 2.2 y tres umbrales APCA para darte una lectura más completa."
 							/>
 							<MetricCard
 								label="Fatiga"
 								value={fatigue.label}
 								detail={fatigue.description}
 								tone={fatigue.tone === 'optimal' ? 'success' : fatigue.tone === 'moderate' ? 'warning' : 'danger'}
+								hint="No todo contraste alto es cómodo. Este módulo ayuda a detectar lectura cansada o agresiva."
 							/>
 						</div>
 					</div>
@@ -912,9 +942,9 @@
 						</div>
 
 						<div class="metric-grid compact">
-							<MetricCard label="Objetivo" value={`${ratio.toFixed(2)}:1`} detail="Ratio visible actual" tone="default" />
-							<MetricCard label="Dark ratio" value={`${darkModePair.ratio.toFixed(2)}:1`} detail="Resultado ajustado" tone={darkModePair.ratio >= ratio ? 'success' : 'warning'} />
-							<MetricCard label="Dark APCA" value={`${Math.abs(darkModePair.apca).toFixed(1)} Lc`} detail="Percepción del par oscuro" tone={Math.abs(darkModePair.apca) >= 60 ? 'success' : 'warning'} />
+							<MetricCard label="Objetivo" value={`${ratio.toFixed(2)}:1`} detail="Ratio visible actual" tone="default" hint="Éste es el objetivo que intentamos igualar al generar la versión dark." />
+							<MetricCard label="Dark ratio" value={`${darkModePair.ratio.toFixed(2)}:1`} detail="Resultado ajustado" tone={darkModePair.ratio >= ratio ? 'success' : 'warning'} hint="Compara qué tan cerca queda el par oscuro del contraste original." />
+							<MetricCard label="Dark APCA" value={`${Math.abs(darkModePair.apca).toFixed(1)} Lc`} detail="Percepción del par oscuro" tone={Math.abs(darkModePair.apca) >= 60 ? 'success' : 'warning'} hint="APCA ayuda a estimar si el modo oscuro conserva legibilidad perceptual." />
 						</div>
 					{/if}
 				</SectionCard>
@@ -1209,7 +1239,7 @@
 			linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0)),
 			var(--surface-1);
 		box-shadow: var(--shadow-lg);
-		backdrop-filter: blur(18px);
+		backdrop-filter: blur(16px);
 	}
 
 	.masthead {
@@ -1222,6 +1252,11 @@
 		justify-content: space-between;
 		gap: 1rem;
 		margin-bottom: 1rem;
+	}
+
+	.brand-block {
+		display: grid;
+		gap: 0.25rem;
 	}
 
 	.badge,
@@ -1268,9 +1303,9 @@
 
 	.masthead-copy h1 {
 		margin: 0.75rem 0 0.9rem;
-		max-width: 10ch;
-		font-size: clamp(2.8rem, 6vw, 5rem);
-		line-height: 0.92;
+		max-width: 11ch;
+		font-size: clamp(2.45rem, 5vw, 4.2rem);
+		line-height: 0.95;
 	}
 
 	.lede {
@@ -1293,8 +1328,15 @@
 	.workspace-status strong {
 		border-radius: 999px;
 		border: 1px solid var(--line);
-		background: rgba(255, 255, 255, 0.03);
+		background: rgba(79, 110, 247, 0.05);
 		padding: 0.62rem 0.85rem;
+	}
+
+	:global(html[data-theme='dark']) .hero-points span,
+	:global(html[data-theme='dark']) .monitor-pills span,
+	:global(html[data-theme='dark']) .chip,
+	:global(html[data-theme='dark']) .workspace-status strong {
+		background: rgba(124, 148, 255, 0.08);
 	}
 
 	.hero-actions {
@@ -1305,21 +1347,65 @@
 	}
 
 	.hero-actions button {
-		border-radius: 999px;
-		padding: 0.88rem 1.1rem;
+		border-radius: 14px;
+		padding: 0.88rem 1.15rem;
 		font-weight: 600;
+		box-shadow: var(--shadow-md);
 	}
 
 	.primary {
-		border: 1px solid rgba(255, 255, 255, 0.12);
-		background: linear-gradient(180deg, rgba(184, 148, 98, 0.22), rgba(184, 148, 98, 0.14));
-		color: var(--ink-strong);
+		border: 1px solid transparent;
+		background: linear-gradient(180deg, #5e7cfa, #4f6ef7);
+		color: white;
+		box-shadow: var(--button-shadow);
 	}
 
 	.secondary {
 		border: 1px solid var(--line-strong);
-		background: rgba(255, 255, 255, 0.03);
+		background: rgba(255, 255, 255, 0.72);
 		color: var(--ink-strong);
+	}
+
+	:global(html[data-theme='dark']) .secondary {
+		background: rgba(255, 255, 255, 0.03);
+	}
+
+	.primary:hover,
+	.secondary:hover,
+	.primary:focus-visible,
+	.secondary:focus-visible {
+		transform: translateY(-1px);
+		outline: none;
+	}
+
+	.secondary:focus-visible,
+	.primary:focus-visible {
+		box-shadow: 0 0 0 4px var(--accent-soft);
+	}
+
+	.theme-toggle {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.22rem;
+		border-radius: 999px;
+		border: 1px solid var(--line);
+		background: var(--surface-3);
+		box-shadow: var(--shadow-md);
+	}
+
+	.theme-toggle button {
+		border: 0;
+		background: transparent;
+		color: var(--ink-soft);
+		padding: 0.58rem 0.88rem;
+		border-radius: 999px;
+		font-weight: 700;
+	}
+
+	.theme-toggle button.active {
+		background: var(--accent);
+		color: white;
+		box-shadow: var(--button-shadow);
 	}
 
 	.masthead-monitor {
@@ -1435,18 +1521,31 @@
 		padding: 0.95rem 1rem;
 		border-radius: 18px;
 		border: 1px solid var(--line);
-		background: rgba(255, 255, 255, 0.02);
+		background: var(--surface-2);
 		color: var(--ink-strong);
+		box-shadow: var(--shadow-md);
 		transition:
 			border-color 180ms ease,
 			background 180ms ease,
-			transform 180ms ease;
+			transform 180ms ease,
+			box-shadow 180ms ease;
 	}
 
 	.tablist button.active {
-		border-color: rgba(184, 148, 98, 0.34);
-		background: rgba(184, 148, 98, 0.08);
+		border-color: rgba(79, 110, 247, 0.24);
+		background: rgba(79, 110, 247, 0.08);
 		transform: translateY(-1px);
+	}
+
+	:global(html[data-theme='dark']) .tablist button.active {
+		border-color: rgba(124, 148, 255, 0.3);
+		background: rgba(124, 148, 255, 0.12);
+	}
+
+	.tablist button:hover,
+	.tablist button:focus-visible {
+		border-color: var(--accent);
+		outline: none;
 	}
 
 	.tablist strong {
@@ -1498,14 +1597,38 @@
 		font-size: 0.82rem;
 	}
 
+	.label-inline {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
+	}
+
 	select,
 	.palette-controls input,
 	.semantic-inputs input {
 		border: 1px solid var(--line);
 		border-radius: 16px;
 		padding: 0.9rem 0.95rem;
-		background: var(--surface-3);
+		background: #fff;
 		color: var(--ink-strong);
+		box-shadow: var(--shadow-md);
+	}
+
+	select:hover,
+	select:focus-visible,
+	.palette-controls input:hover,
+	.palette-controls input:focus-visible,
+	.semantic-inputs input:hover,
+	.semantic-inputs input:focus-visible {
+		border-color: var(--accent);
+		outline: none;
+		box-shadow: 0 0 0 4px var(--accent-soft);
+	}
+
+	:global(html[data-theme='dark']) select,
+	:global(html[data-theme='dark']) .palette-controls input,
+	:global(html[data-theme='dark']) .semantic-inputs input {
+		background: var(--surface-3);
 	}
 
 	.pair-card {
@@ -1517,6 +1640,7 @@
 		border-radius: 18px;
 		border: 1px solid var(--line);
 		background: var(--surface-2);
+		box-shadow: var(--shadow-md);
 	}
 
 	.pair-swatches {
@@ -1551,9 +1675,9 @@
 		margin-top: -0.15rem;
 		padding: 0.8rem 1rem;
 		border-radius: 999px;
-		background: rgba(145, 168, 123, 0.14);
-		border: 1px solid rgba(145, 168, 123, 0.28);
-		color: #dbe7cf;
+		background: rgba(35, 133, 109, 0.12);
+		border: 1px solid rgba(35, 133, 109, 0.24);
+		color: var(--lime);
 	}
 
 	.tab-panel,
@@ -1608,10 +1732,26 @@
 
 	.chip {
 		color: var(--ink-strong);
+		border: 1px solid var(--line-strong);
+		background: #fff;
+		box-shadow: var(--shadow-md);
+		padding: 0.72rem 0.92rem;
+		font-weight: 600;
 	}
 
 	.chip.ghost {
-		background: rgba(255, 255, 255, 0.015);
+		background: var(--surface-2);
+	}
+
+	:global(html[data-theme='dark']) .chip {
+		background: var(--surface-3);
+	}
+
+	.chip:hover,
+	.chip:focus-visible {
+		border-color: var(--accent);
+		outline: none;
+		transform: translateY(-1px);
 	}
 
 	.audit-overview {
@@ -1708,12 +1848,13 @@
 		gap: 1rem;
 		padding: 1rem;
 		border-radius: 18px;
-		background: rgba(255, 255, 255, 0.015);
-		border: 1px solid rgba(197, 130, 130, 0.2);
+		background: var(--surface-2);
+		border: 1px solid rgba(208, 87, 107, 0.18);
+		box-shadow: var(--shadow-md);
 	}
 
 	.criterion.itemPass {
-		border-color: rgba(145, 168, 123, 0.24);
+		border-color: rgba(35, 133, 109, 0.22);
 	}
 
 	.criterion strong {
@@ -1779,30 +1920,39 @@
 	}
 
 	.preview-button {
-		border-radius: 999px;
+		border-radius: 12px;
 		padding: 0.82rem 1rem;
+		font-weight: 700;
 	}
 
 	.preview-button.filled {
 		border: 1px solid transparent;
-		background: var(--preview-fg);
-		color: var(--preview-bg);
+		background: var(--accent);
+		color: white;
 	}
 
 	.preview-button.outline {
 		border: 1px solid var(--preview-border);
-		background: transparent;
+		background: rgba(255, 255, 255, 0.48);
 		color: var(--preview-fg);
+	}
+
+	:global(html[data-theme='dark']) .preview-button.outline {
+		background: transparent;
 	}
 
 	.forms input {
 		width: 100%;
 		margin-top: 0.45rem;
 		border: 1px solid var(--preview-border);
-		background: var(--preview-soft);
+		background: rgba(255, 255, 255, 0.56);
 		color: var(--preview-fg);
 		padding: 0.78rem 0.88rem;
 		border-radius: 14px;
+	}
+
+	:global(html[data-theme='dark']) .forms input {
+		background: var(--preview-soft);
 	}
 
 	.nav nav {
@@ -1838,7 +1988,7 @@
 		padding: 1rem;
 		border-radius: 16px;
 		border: 1px solid var(--preview-border);
-		background: linear-gradient(135deg, rgba(184, 148, 98, 0.16), transparent 70%), var(--preview-soft);
+		background: linear-gradient(135deg, rgba(79, 110, 247, 0.14), transparent 70%), var(--preview-soft);
 	}
 
 	.module-copy {
@@ -1878,7 +2028,7 @@
 		width: 42%;
 		height: 42%;
 		border-radius: 20px;
-		border: 1px solid rgba(255, 255, 255, 0.18);
+		border: 1px solid var(--line-strong);
 	}
 
 	.effective-meta {
@@ -1928,7 +2078,7 @@
 
 	.darkmode-fg {
 		inset: 18% 18% 18% 18%;
-		border: 1px solid rgba(255, 255, 255, 0.18);
+		border: 1px solid var(--line-strong);
 	}
 
 	.darkmode-meta {
@@ -1952,7 +2102,8 @@
 		padding: 0.95rem 1rem;
 		border-radius: 20px;
 		border: 1px solid var(--line);
-		background: rgba(255, 255, 255, 0.02);
+		background: var(--surface-2);
+		box-shadow: var(--shadow-md);
 	}
 
 	.scenario-swatch {
@@ -1961,7 +2112,7 @@
 		margin-bottom: 0.8rem;
 		border-radius: 16px;
 		overflow: hidden;
-		border: 1px solid rgba(255, 255, 255, 0.12);
+		border: 1px solid var(--line-strong);
 	}
 
 	.scenario-swatch div:first-child,
@@ -1978,7 +2129,7 @@
 		width: 42%;
 		height: 42%;
 		border-radius: 16px;
-		border: 1px solid rgba(255, 255, 255, 0.2);
+		border: 1px solid var(--line-strong);
 	}
 
 	.scenario span,
@@ -1998,19 +2149,19 @@
 	}
 
 	.band.low {
-		background: linear-gradient(90deg, rgba(197, 130, 130, 0.92), rgba(184, 148, 98, 0.92));
+		background: linear-gradient(90deg, rgba(208, 87, 107, 0.92), rgba(244, 156, 81, 0.92));
 	}
 
 	.band.mid {
-		background: linear-gradient(90deg, rgba(184, 148, 98, 0.92), rgba(181, 162, 110, 0.9));
+		background: linear-gradient(90deg, rgba(244, 156, 81, 0.92), rgba(242, 191, 79, 0.9));
 	}
 
 	.band.opt {
-		background: linear-gradient(90deg, rgba(145, 168, 123, 0.92), rgba(122, 151, 134, 0.9));
+		background: linear-gradient(90deg, rgba(35, 133, 109, 0.92), rgba(59, 179, 140, 0.9));
 	}
 
 	.band.high {
-		background: linear-gradient(90deg, rgba(122, 151, 134, 0.92), rgba(113, 132, 157, 0.9));
+		background: linear-gradient(90deg, rgba(47, 125, 244, 0.92), rgba(83, 103, 250, 0.9));
 	}
 
 	.needle {
@@ -2020,8 +2171,8 @@
 		width: 0.85rem;
 		height: 1.55rem;
 		border-radius: 999px;
-		background: #f8f2e8;
-		box-shadow: 0 0 0 4px rgba(248, 242, 232, 0.12);
+		background: white;
+		box-shadow: 0 0 0 4px rgba(79, 110, 247, 0.12);
 	}
 
 	.semantic-inputs {
@@ -2031,8 +2182,8 @@
 	}
 
 	.semantic-summary.selected {
-		border-color: rgba(184, 148, 98, 0.34);
-		background: rgba(184, 148, 98, 0.06);
+		border-color: rgba(79, 110, 247, 0.3);
+		background: rgba(79, 110, 247, 0.08);
 	}
 
 	.semantic-table {
@@ -2047,20 +2198,21 @@
 		gap: 0.8rem;
 		padding: 0.92rem 1rem;
 		border-radius: 16px;
-		background: rgba(255, 255, 255, 0.02);
+		background: var(--surface-2);
 		border: 1px solid var(--line);
+		box-shadow: var(--shadow-md);
 	}
 
 	.semantic-row.good {
-		border-color: rgba(145, 168, 123, 0.24);
+		border-color: rgba(35, 133, 109, 0.24);
 	}
 
 	.semantic-row.warn {
-		border-color: rgba(184, 148, 98, 0.26);
+		border-color: rgba(242, 191, 79, 0.28);
 	}
 
 	.semantic-row.bad {
-		border-color: rgba(197, 130, 130, 0.24);
+		border-color: rgba(208, 87, 107, 0.24);
 	}
 
 	.palette-controls,
@@ -2086,7 +2238,7 @@
 		width: 4.2rem;
 		height: 4.2rem;
 		border-radius: 18px;
-		border: 1px solid rgba(255, 255, 255, 0.12);
+		border: 1px solid var(--line-strong);
 	}
 
 	.tone-ratios {
@@ -2126,8 +2278,9 @@
 	.export-card {
 		border-radius: 22px;
 		border: 1px solid var(--line);
-		background: rgba(255, 255, 255, 0.02);
+		background: var(--surface-2);
 		overflow: hidden;
+		box-shadow: var(--shadow-md);
 	}
 
 	.export-head {
@@ -2145,7 +2298,7 @@
 		overflow: auto;
 		font-size: 0.8rem;
 		line-height: 1.65;
-		color: #d3cdc4;
+		color: var(--ink-strong);
 	}
 
 	button {

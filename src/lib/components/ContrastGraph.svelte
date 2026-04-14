@@ -62,13 +62,13 @@
 	}
 
 	.threshold {
-		stroke: rgba(184, 148, 98, 0.95);
+		stroke: rgba(79, 110, 247, 0.95);
 		stroke-width: 2;
 		stroke-dasharray: 8 8;
 	}
 
 	.marker {
-		stroke: rgba(145, 168, 123, 0.72);
+		stroke: rgba(35, 133, 109, 0.72);
 		stroke-width: 2;
 		stroke-dasharray: 5 6;
 	}

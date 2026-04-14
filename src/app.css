@@ -1,22 +1,45 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap');
 
 :root {
-	--ink-strong: #f5f0e8;
-	--ink-soft: #b0aa9d;
-	--ink-muted: #857f76;
-	--surface-0: #0b1016;
-	--surface-1: rgba(16, 20, 28, 0.9);
-	--surface-2: rgba(20, 25, 34, 0.94);
-	--surface-3: rgba(12, 16, 24, 0.96);
-	--line: rgba(245, 240, 232, 0.09);
-	--line-strong: rgba(245, 240, 232, 0.16);
-	--glow: rgba(245, 240, 232, 0.12);
-	--accent: #b89462;
-	--accent-soft: rgba(184, 148, 98, 0.16);
-	--lime: #91a87b;
-	--cyan: #7a9798;
-	--danger: #c58282;
-	--shadow-lg: 0 28px 80px rgba(2, 6, 12, 0.42);
+	--ink-strong: #182132;
+	--ink-soft: #5f6b85;
+	--ink-muted: #8a93a8;
+	--surface-0: #f4f7fb;
+	--surface-1: rgba(255, 255, 255, 0.94);
+	--surface-2: rgba(250, 252, 255, 0.98);
+	--surface-3: rgba(245, 248, 253, 0.96);
+	--line: rgba(24, 33, 50, 0.08);
+	--line-strong: rgba(24, 33, 50, 0.14);
+	--glow: rgba(79, 110, 247, 0.12);
+	--accent: #4f6ef7;
+	--accent-soft: rgba(79, 110, 247, 0.12);
+	--lime: #23856d;
+	--cyan: #2f7df4;
+	--danger: #d0576b;
+	--shadow-lg: 0 24px 60px rgba(34, 50, 84, 0.08);
+	--shadow-md: 0 12px 30px rgba(34, 50, 84, 0.06);
+	--button-shadow: 0 10px 24px rgba(79, 110, 247, 0.18);
+}
+
+html[data-theme='dark'] {
+	--ink-strong: #eff3ff;
+	--ink-soft: #aab4cc;
+	--ink-muted: #7f8aa3;
+	--surface-0: #0d1320;
+	--surface-1: rgba(16, 20, 31, 0.94);
+	--surface-2: rgba(20, 25, 38, 0.98);
+	--surface-3: rgba(12, 16, 27, 0.96);
+	--line: rgba(239, 243, 255, 0.08);
+	--line-strong: rgba(239, 243, 255, 0.14);
+	--glow: rgba(124, 148, 255, 0.15);
+	--accent: #7c94ff;
+	--accent-soft: rgba(124, 148, 255, 0.16);
+	--lime: #8cc2a0;
+	--cyan: #7aa7ff;
+	--danger: #dd8f9f;
+	--shadow-lg: 0 28px 80px rgba(2, 6, 12, 0.4);
+	--shadow-md: 0 12px 30px rgba(2, 6, 12, 0.24);
+	--button-shadow: 0 10px 24px rgba(124, 148, 255, 0.18);
 }
 
 *,
@@ -34,10 +57,17 @@ body {
 	min-width: 320px;
 	color: var(--ink-strong);
 	background:
-		radial-gradient(circle at top left, rgba(184, 148, 98, 0.12), transparent 24%),
-		radial-gradient(circle at 85% 12%, rgba(122, 151, 152, 0.09), transparent 22%),
-		linear-gradient(180deg, #0f141b 0%, #0b1016 56%, #080c12 100%);
+		radial-gradient(circle at top left, rgba(79, 110, 247, 0.09), transparent 26%),
+		radial-gradient(circle at 84% 10%, rgba(47, 125, 244, 0.08), transparent 22%),
+		linear-gradient(180deg, #fafcff 0%, #f4f7fb 52%, #eef2f8 100%);
 	font-family: 'Manrope', 'Avenir Next', 'Segoe UI', sans-serif;
+}
+
+html[data-theme='dark'] body {
+	background:
+		radial-gradient(circle at top left, rgba(124, 148, 255, 0.11), transparent 24%),
+		radial-gradient(circle at 84% 10%, rgba(122, 167, 255, 0.08), transparent 24%),
+		linear-gradient(180deg, #101726 0%, #0d1320 52%, #0a101b 100%);
 }
 
 body::before {
@@ -46,11 +76,18 @@ body::before {
 	inset: 0;
 	pointer-events: none;
 	background-image:
-		linear-gradient(rgba(245, 240, 232, 0.028) 1px, transparent 1px),
-		linear-gradient(90deg, rgba(245, 240, 232, 0.022) 1px, transparent 1px);
+		linear-gradient(rgba(24, 33, 50, 0.03) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(24, 33, 50, 0.024) 1px, transparent 1px);
 	background-size: 56px 56px;
 	mask-image: radial-gradient(circle at center, black 38%, transparent 88%);
-	opacity: 0.48;
+	opacity: 0.3;
+}
+
+html[data-theme='dark'] body::before {
+	background-image:
+		linear-gradient(rgba(239, 243, 255, 0.028) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(239, 243, 255, 0.022) 1px, transparent 1px);
+	opacity: 0.44;
 }
 
 a {
@@ -66,4 +103,11 @@ textarea {
 
 button {
 	cursor: pointer;
+	transition:
+		background-color 180ms ease,
+		border-color 180ms ease,
+		color 180ms ease,
+		box-shadow 180ms ease,
+		transform 180ms ease,
+		opacity 180ms ease;
 }
